@@ -1,0 +1,35 @@
+{
+  "name": "@diner/store",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "remix vite:dev --port 8789",
+    "build": "remix vite:build",
+    "deploy": "wrangler pages deploy ./build/client",
+    "preview": "wrangler pages dev ./build/client",
+    "typecheck": "tsc",
+    "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
+    "clean": "rm -rf build .wrangler .turbo node_modules"
+  },
+  "dependencies": {
+    "@remix-run/cloudflare": "^2.17.2",
+    "@remix-run/cloudflare-pages": "^2.17.2",
+    "@remix-run/react": "^2.17.2",
+    "@diner/db": "workspace:*",
+    "@diner/ui": "workspace:*",
+    "@diner/config": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "isbot": "^5.1.21"
+  },
+  "devDependencies": {
+    "@diner/ts-config": "workspace:*",
+    "@remix-run/dev": "^2.17.2",
+    "@cloudflare/workers-types": "^4.20250106.0",
+    "vite": "^6.0.7",
+    "vite-tsconfig-paths": "^5.1.4",
+    "wrangler": "^3.95.0",
+    "typescript": "^5.7.2"
+  }
+}

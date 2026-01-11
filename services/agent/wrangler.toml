@@ -1,0 +1,28 @@
+name = "diner-agent"
+main = "src/index.ts"
+compatibility_date = "2024-04-05"
+
+# Durable Objects configuration
+[[durable_objects.bindings]]
+name = "DINER_AGENT"
+class_name = "DinerAgent"
+script_name = "diner-agent"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["DinerAgent"]
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "diner-core"
+database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# AI binding
+[ai]
+binding = "AI"
+
+# Environment variables (secrets - set with wrangler secret put)
+# TWILIO_ACCOUNT_SID
+# TWILIO_AUTH_TOKEN
+# TWILIO_PHONE_NUMBER

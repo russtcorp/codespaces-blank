@@ -1,0 +1,24 @@
+{
+  "name": "@diner/agent",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8791",
+    "build": "tsc",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "clean": "rm -rf dist .wrangler .turbo node_modules"
+  },
+  "dependencies": {
+    "@diner/db": "workspace:*",
+    "@diner/config": "workspace:*"
+  },
+  "devDependencies": {
+    "@diner/ts-config": "workspace:*",
+    "@cloudflare/workers-types": "^4.20250106.0",
+    "wrangler": "^3.95.0",
+    "typescript": "^5.7.2"
+  }
+}

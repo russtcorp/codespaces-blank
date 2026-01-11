@@ -1,0 +1,27 @@
+{
+  "name": "@diner/db",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "eslint src/",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "migrate:local": "wrangler d1 migrations apply diner-core --local",
+    "migrate:remote": "wrangler d1 migrations apply diner-core --remote",
+    "seed:local": "wrangler d1 execute diner-core --local --file ./src/seed.sql",
+    "clean": "rm -rf dist .turbo node_modules"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.30.10",
+    "@diner/config": "workspace:*"
+  },
+  "devDependencies": {
+    "@diner/ts-config": "workspace:*",
+    "@cloudflare/workers-types": "^4.20250106.0",
+    "drizzle-kit": "^0.22.0",
+    "typescript": "^5.7.2"
+  }
+}
