@@ -21,7 +21,14 @@
     "@diner/config": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "isbot": "^5.1.21"
+    "isbot": "^5.1.21",
+    "remix-auth": "^4.0.0",
+    "remix-auth-form": "^1.5.0",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^9.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "zod": "^3.24.1",
+    "date-fns": "^4.1.0"
   },
   "devDependencies": {
     "@diner/ts-config": "workspace:*",

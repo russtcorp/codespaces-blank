@@ -38,6 +38,11 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const hours = await tdb.select(operatingHours);
   const specials = await tdb.select(specialDates);
 
+  // Check for emergency close
+  const emergencyClosed = biz?.marketingPixels 
+    ? JSON.parse(biz.marketingPixels).emergency_closed 
+    : false;
+
   const menu = cats
     .map((cat) => {
       const catItems = items.filter((m) => m.categoryId === cat.id);
@@ -57,7 +62,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     })
     .filter(Boolean) as LoaderData['menu'];
 
-  const status = computeStatus({ operatingHours: hours, specialDates: specials, emergencyClosed: false });
+  const status = computeStatus({ operatingHours: hours, specialDates: specials, emergencyClosed });
 
   const themeStyle = `:root {${[
     ['--primary', theme?.primaryColor ?? '#b22222'],

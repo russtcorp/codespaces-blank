@@ -88,7 +88,11 @@ export class DinerAgent implements DurableObject {
 
     // Add message to conversation
     if (url.pathname === '/message' && request.method === 'POST') {
-      const { message } = await request.json();
+      const body = await request.json() as { message?: string };
+      const message = body.message;
+      if (!message) {
+        return new Response('Missing message', { status: 400 });
+      }
       const history = (await this.state.storage.get<string[]>('history')) || [];
       history.push(message);
       await this.state.storage.put('history', history);

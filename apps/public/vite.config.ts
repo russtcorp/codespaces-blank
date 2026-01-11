@@ -10,12 +10,14 @@ export default defineConfig({
         v3_relativeSplatPath: true,
         v3_throwAbortReason: true,
       },
+      serverBuildFile: 'index.js',
     }),
     tsconfigPaths(),
   ],
   ssr: {
     resolve: {
       conditions: ['workerd', 'worker', 'browser'],
+      externalConditions: ['workerd', 'worker'],
     },
   },
   resolve: {
@@ -23,5 +25,8 @@ export default defineConfig({
   },
   build: {
     minify: true,
+    rollupOptions: {
+      external: ['drizzle-orm', '@diner/db', '@diner/config'],
+    },
   },
 });
