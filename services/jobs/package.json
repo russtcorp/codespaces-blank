@@ -1,0 +1,21 @@
+{
+  "name": "diner-jobs",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8788",
+    "deploy": "wrangler deploy",
+    "build": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@diner-saas/config": "workspace:*",
+    "@diner-saas/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "typescript": "^5.3.3",
+    "wrangler": "^3.90.0"
+  }
+}

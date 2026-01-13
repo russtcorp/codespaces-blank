@@ -1,0 +1,26 @@
+name = "diner-store"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "./build/client"
+
+# Bindings
+[[d1_databases]]
+binding = "DB"
+database_name = "diner-core"
+database_id = "local-db-id"
+
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "diner-assets"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "local-kv-id"
+
+# Durable Object binding (for Agent)
+[[durable_objects.bindings]]
+name = "AGENT_DO"
+class_name = "DinerAgent"
+script_name = "diner-agent"
+
+[observability]
+enabled = true

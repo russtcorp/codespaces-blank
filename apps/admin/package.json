@@ -1,0 +1,33 @@
+{
+  "name": "@diner-saas/admin",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "remix vite:dev --port 3002",
+    "build": "remix vite:build",
+    "deploy": "wrangler pages deploy ./build/client",
+    "lint": "eslint app"
+  },
+  "dependencies": {
+    "@diner-saas/config": "workspace:*",
+    "@diner-saas/db": "workspace:*",
+    "@diner-saas/ui": "workspace:*",
+    "@remix-run/cloudflare": "^2.15.1",
+    "@remix-run/cloudflare-pages": "^2.15.1",
+    "@remix-run/react": "^2.15.1",
+    "isbot": "^4.4.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "@remix-run/dev": "^2.15.1",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.11",
+    "vite-tsconfig-paths": "^4.3.1",
+    "wrangler": "^3.90.0"
+  }
+}

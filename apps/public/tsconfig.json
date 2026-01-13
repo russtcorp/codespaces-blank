@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["app", "remix.env.d.ts"],
+  "compilerOptions": {
+    "module": "ESNext",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "types": ["@remix-run/cloudflare", "@cloudflare/workers-types"],
+    "jsx": "react-jsx",
+    "paths": {
+      "~/*": ["./app/*"]
+    }
+  }
+}

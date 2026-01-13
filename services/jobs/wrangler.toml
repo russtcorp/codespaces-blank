@@ -1,0 +1,40 @@
+name = "diner-jobs"
+type = "service"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Bindings
+[[d1_databases]]
+binding = "DB"
+database_name = "diner-core"
+database_id = "local-db-id"
+
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "diner-assets"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "local-kv-id"
+
+# Queues
+[[queues.producers]]
+binding = "SMS_OUTBOUND_QUEUE"
+queue = "sms-outbound"
+
+[[queues.producers]]
+binding = "SOCIAL_SYNC_QUEUE"
+queue = "social-media-sync"
+
+[[queues.producers]]
+binding = "ROI_REPORTS_QUEUE"
+queue = "roi-reports"
+
+# Cron Triggers
+[[triggers.crons]]
+cron = "0 0 * * *"  # Daily at midnight
+
+# Service bindings
+[[services]]
+binding = "STORE_SERVICE"
+service = "diner-store"
