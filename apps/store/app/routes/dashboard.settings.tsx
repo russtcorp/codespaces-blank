@@ -2,7 +2,7 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from '@remix-run/cloudfla
 import { json } from '@remix-run/cloudflare';
 import { useLoaderData, useFetcher, useActionData } from '@remix-run/react';
 import { useEffect } from 'react';
-import { createDb, createTenantDb, businessInfo, themeConfig, tenants } from '@diner/db';
+import { createDb, createTenantDb, businessInfo, themeConfig, tenants, authorizedUsers } from '@diner/db';
 import { eq } from 'drizzle-orm';
 import { requireUserSession } from '~/services/auth.server';
 import { invalidatePublicCache } from '~/utils/cache.server';
@@ -24,11 +24,23 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const [tenant] = await tdb.select(tenants);
   const [biz] = await tdb.select(businessInfo);
   const [theme] = await tdb.select(themeConfig);
+  const [user] = await tdb.select(authorizedUsers, eq(authorizedUsers.id, session.userId));
+
+  const pixels = biz?.marketingPixels ? JSON.parse(biz.marketingPixels) : {};
+  const notifPrefs = user?.notificationPreferences ? JSON.parse(user.notificationPreferences) : {};
 
   return json({
     tenant,
     businessInfo: biz || {},
     theme: theme || {},
+    pixels: {
+      facebookPixelId: pixels.facebook_pixel_id || '',
+      googleTagId: pixels.google_tag_id || '',
+    },
+    notificationPreferences: {
+      smsReviews: notifPrefs.sms_reviews || 'none',
+      emailWeeklyReport: notifPrefs.email_weekly_report ?? true,
+    },
   });
 }
 
@@ -93,6 +105,56 @@ export async function action({ request, context }: ActionFunctionArgs) {
       return json({ success: true, message: 'Theme updated' });
     }
 
+    if (intent === 'update-pixels') {
+      const facebookPixelId = formData.get('facebookPixelId');
+      const googleTagId = formData.get('googleTagId');
+
+      const [biz] = await tdb.select(businessInfo);
+      const currentPixels = biz?.marketingPixels ? JSON.parse(biz.marketingPixels) : {};
+      const newPixels = {
+        ...currentPixels,
+        facebook_pixel_id: facebookPixelId?.toString() || '',
+        google_tag_id: googleTagId?.toString() || '',
+      };
+
+      if (biz) {
+        await tdb.update(
+          businessInfo,
+          { marketingPixels: JSON.stringify(newPixels) },
+          eq(businessInfo.tenantId, session.tenantId)
+        );
+      } else {
+        await tdb.insert(businessInfo, {
+          tenantId: session.tenantId,
+          marketingPixels: JSON.stringify(newPixels),
+        });
+      }
+
+      await invalidatePublicCache(env, session.tenantId);
+      return json({ success: true, message: 'Marketing pixels updated' });
+    }
+
+    if (intent === 'update-notifications') {
+      const smsReviews = formData.get('smsReviews');
+      const emailWeeklyReport = formData.get('emailWeeklyReport') === 'true';
+
+      const [user] = await tdb.select(authorizedUsers, eq(authorizedUsers.id, session.userId));
+      const prefs = {
+        sms_reviews: smsReviews?.toString() || 'none',
+        email_weekly_report: emailWeeklyReport,
+      };
+
+      if (user) {
+        await tdb.update(
+          authorizedUsers,
+          { notificationPreferences: JSON.stringify(prefs) },
+          eq(authorizedUsers.id, session.userId)
+        );
+      }
+
+      return json({ success: true, message: 'Notification preferences updated' });
+    }
+
     return json({ error: 'Unknown intent' }, { status: 400 });
   } catch (error) {
     console.error('Settings action error:', error);
@@ -101,7 +163,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function Settings() {
-  const { tenant, businessInfo: biz, theme } = useLoaderData<typeof loader>();
+  const { tenant, businessInfo: biz, theme, pixels, notificationPreferences } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const fetcher = useFetcher();
 
@@ -289,6 +351,98 @@ export default function Settings() {
 
             <Button type="submit" disabled={fetcher.state === 'submitting'}>
               {fetcher.state === 'submitting' ? 'Saving...' : 'Save Theme'}
+            </Button>
+          </fetcher.Form>
+        </CardContent>
+      </Card>
+
+      {/* Notification Preferences */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Notification Preferences</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <fetcher.Form method="post" className="space-y-4">
+            <input type="hidden" name="intent" value="update-notifications" />
+            
+            <div>
+              <label htmlFor="smsReviews" className="block text-sm font-medium">
+                SMS Review Alerts
+              </label>
+              <select
+                id="smsReviews"
+                name="smsReviews"
+                defaultValue={notificationPreferences.smsReviews}
+                className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
+              >
+                <option value="none">None - Don't text me</option>
+                <option value="all">All reviews</option>
+                <option value="5_star">5-star reviews only</option>
+                <option value="1_star">1-star reviews only</option>
+              </select>
+              <p className="mt-1 text-xs text-muted-foreground">Get text messages when customers leave reviews</p>
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name="emailWeeklyReport"
+                  value="true"
+                  defaultChecked={notificationPreferences.emailWeeklyReport}
+                  className="h-4 w-4 rounded"
+                />
+                <span className="text-sm font-medium">Email me weekly reports</span>
+              </label>
+              <p className="ml-6 text-xs text-muted-foreground">Receive weekly analytics and ROI reports via email</p>
+            </div>
+
+            <Button type="submit" disabled={fetcher.state === 'submitting'}>
+              {fetcher.state === 'submitting' ? 'Saving...' : 'Save Preferences'}
+            </Button>
+          </fetcher.Form>
+        </CardContent>
+      </Card>
+
+      {/* Marketing Integrations */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Marketing Integrations</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <fetcher.Form method="post" className="space-y-4">
+            <input type="hidden" name="intent" value="update-pixels" />
+            
+            <div>
+              <label htmlFor="facebookPixelId" className="block text-sm font-medium">
+                Facebook Pixel ID
+              </label>
+              <Input
+                id="facebookPixelId"
+                name="facebookPixelId"
+                placeholder="1234567890123456"
+                defaultValue={pixels.facebookPixelId}
+                className="mt-1"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">Track conversions and optimize Facebook ads</p>
+            </div>
+
+            <div>
+              <label htmlFor="googleTagId" className="block text-sm font-medium">
+                Google Analytics 4 ID
+              </label>
+              <Input
+                id="googleTagId"
+                name="googleTagId"
+                placeholder="G-XXXXXXXXXX"
+                defaultValue={pixels.googleTagId}
+                className="mt-1"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">Track visitor behavior with Google Analytics</p>
+            </div>
+
+            <Button type="submit" disabled={fetcher.state === 'submitting'}>
+              {fetcher.state === 'submitting' ? 'Saving...' : 'Save Integrations'}
             </Button>
           </fetcher.Form>
         </CardContent>

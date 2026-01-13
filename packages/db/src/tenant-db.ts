@@ -67,7 +67,7 @@ export function createTenantDb(db: DrizzleD1Database<typeof schema>, tenantId: s
 
     insert<T extends TenantScopedTable>(table: T, values: Record<string, any>) {
       const withTenant = withTenantId(table, tenantId, values);
-      return db.insert(table).values(withTenant);
+      return db.insert(table).values(withTenant as any);
     },
 
     softDelete<T extends TenantScopedTable>(table: T, where?: any) {

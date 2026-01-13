@@ -3,7 +3,7 @@ import { json } from '@remix-run/cloudflare';
 import { useLoaderData, useFetcher } from '@remix-run/react';
 import { useState, useEffect } from 'react';
 import { createDb, createTenantDb, categories, menuItems } from '@diner/db';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { requireUserSession } from '~/services/auth.server';
 import { invalidatePublicCache } from '~/utils/cache.server';
 import { requirePermission } from '~/utils/permissions';
@@ -56,6 +56,7 @@ type MenuItem = {
   imageUrl: string | null;
   dietaryTags: string | null;
   dietaryTagsVerified: boolean;
+  version: number;
 };
 
 function SortableCategory({
@@ -215,7 +216,21 @@ export async function action({ request, context }: ActionFunctionArgs) {
       };
 
       if (intent === 'edit-item' && id) {
-        await tdb.update(menuItems, itemData, eq(menuItems.id, parseInt(id.toString(), 10)));
+        const version = formData.get('version');
+        const idInt = parseInt(id.toString(), 10);
+        const verInt = version ? parseInt(version.toString(), 10) : 0;
+
+        await tdb.update(
+          menuItems,
+          { ...itemData, version: verInt + 1 },
+          and(eq(menuItems.id, idInt), eq(menuItems.version, verInt))
+        );
+
+        const [updated] = await tdb.select(menuItems, eq(menuItems.id, idInt));
+        if (!updated || updated.version !== verInt + 1) {
+          return json({ error: 'Conflict: item was modified by someone else. Please reload.', code: 'conflict' }, { status: 409 });
+        }
+
         await invalidatePublicCache(env, session.tenantId);
         return json({ success: true, message: 'Item updated' });
       } else {
@@ -231,7 +246,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         return json({ error: 'ID required' }, { status: 400 });
       }
 
-      await db.delete(menuItems).where(eq(menuItems.id, parseInt(id.toString(), 10)));
+      await tdb.softDelete(menuItems, eq(menuItems.id, parseInt(id.toString(), 10)));
       await invalidatePublicCache(env, session.tenantId);
       return json({ success: true, message: 'Item deleted' });
     }
@@ -260,12 +275,22 @@ export async function action({ request, context }: ActionFunctionArgs) {
       }
 
       const id = parseInt(itemId.toString(), 10);
+      const version = formData.get('version');
+      const verInt = version ? parseInt(version.toString(), 10) : 0;
       const [item] = await tdb.select(menuItems, eq(menuItems.id, id));
 
       if (item) {
-        await tdb.update(menuItems, { isAvailable: !item.isAvailable }, eq(menuItems.id, id));
+        await tdb.update(
+          menuItems,
+          { isAvailable: !item.isAvailable, version: verInt + 1 },
+          and(eq(menuItems.id, id), eq(menuItems.version, verInt))
+        );
+        const [updated] = await tdb.select(menuItems, eq(menuItems.id, id));
+        if (!updated || updated.version !== verInt + 1) {
+          return json({ error: 'Conflict: item was modified by someone else. Please reload.', code: 'conflict' }, { status: 409 });
+        }
         await invalidatePublicCache(env, session.tenantId);
-        return json({ success: true, message: item.isAvailable ? 'Item 86\'d' : 'Item available' });
+        return json({ success: true, message: item.isAvailable ? "Item 86'd" : 'Item available' });
       }
 
       return json({ error: 'Item not found' }, { status: 404 });
@@ -274,19 +299,31 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (intent === 'bulk-toggle') {
       const itemIds = formData.get('itemIds');
       const available = formData.get('available') === 'true';
+      const versionsRaw = formData.get('versions');
       
       if (!itemIds) {
         return json({ error: 'Item IDs required' }, { status: 400 });
       }
 
       const ids = JSON.parse(itemIds.toString()) as number[];
-      
+      const versions = versionsRaw ? (JSON.parse(versionsRaw.toString()) as Record<number, number>) : {};
+
+      let successCount = 0;
       for (const id of ids) {
-        await tdb.update(menuItems, { isAvailable: available }, eq(menuItems.id, id));
+        const ver = versions[id] ?? 0;
+        await tdb.update(
+          menuItems,
+          { isAvailable: available, version: ver + 1 },
+          and(eq(menuItems.id, id), eq(menuItems.version, ver))
+        );
+        const [updated] = await tdb.select(menuItems, eq(menuItems.id, id));
+        if (updated && updated.version === ver + 1) successCount++;
       }
 
       await invalidatePublicCache(env, session.tenantId);
-      return json({ success: true, message: `${ids.length} items ${available ? 'enabled' : '86\'d'}` });
+      const failed = ids.length - successCount;
+      const message = `${successCount} items ${available ? 'enabled' : "86'd"}${failed ? `, ${failed} conflicts` : ''}`;
+      return json({ success: true, message });
     }
 
     if (intent === 'bulk-delete') {
@@ -299,7 +336,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
       const ids = JSON.parse(itemIds.toString()) as number[];
       
       for (const id of ids) {
-        await db.delete(menuItems).where(eq(menuItems.id, id));
+        await tdb.softDelete(menuItems, eq(menuItems.id, id));
       }
 
       await invalidatePublicCache(env, session.tenantId);
@@ -328,6 +365,9 @@ export default function MenuEditor() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [generatingDescription, setGeneratingDescription] = useState(false);
+  const [analyzingAllergens, setAnalyzingAllergens] = useState(false);
+  const [aiDescription, setAiDescription] = useState<string>('');  const [aiAllergens, setAiAllergens] = useState<string[]>([]);
   const fetcher = useFetcher();
   const reorderFetcher = useFetcher();
   const bulkFetcher = useFetcher();
@@ -404,6 +444,49 @@ export default function MenuEditor() {
     }
   };
 
+  const handleGenerateDescription = async () => {
+    if (!editingItem?.name) return;
+    setGeneratingDescription(true);
+    try {
+      const response = await fetch('/api/ai/generate-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemName: editingItem.name }),
+      });
+      const data = await response.json();
+      if (data.description) {
+        setAiDescription(data.description);
+      }
+    } catch (error) {
+      console.error('AI generation failed:', error);
+    } finally {
+      setGeneratingDescription(false);
+    }
+  };
+
+  const handleAnalyzeAllergens = async () => {
+    if (!editingItem?.name && !editingItem?.description) return;
+    setAnalyzingAllergens(true);
+    try {
+      const response = await fetch('/api/ai/analyze-allergens', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemName: editingItem.name,
+          description: editingItem.description,
+        }),
+      });
+      const data = await response.json();
+      if (data.allergens) {
+        setAiAllergens(data.allergens);
+      }
+    } catch (error) {
+      console.error('Allergen analysis failed:', error);
+    } finally {
+      setAnalyzingAllergens(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -455,6 +538,7 @@ export default function MenuEditor() {
           <fetcher.Form method="post" className="space-y-4">
             <input type="hidden" name="intent" value={editingItem ? 'edit-item' : 'add-item'} />
             {editingItem && <input type="hidden" name="id" value={editingItem.id} />}
+            {editingItem && <input type="hidden" name="version" value={editingItem.version} />}
             <input type="hidden" name="categoryId" value={selectedCategoryId || ''} />
             {imagePreview && <input type="hidden" name="imageUrl" value={imagePreview} />}
             
@@ -487,13 +571,45 @@ export default function MenuEditor() {
 
             <div>
               <label htmlFor="description" className="block text-sm font-medium">Description</label>
-              <textarea
-                id="description"
-                name="description"
-                defaultValue={editingItem?.description || ''}
-                className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
-                rows={3}
-              />
+              <div className="mt-1 space-y-2">
+                <textarea
+                  id="description"
+                  name="description"
+                  defaultValue={editingItem?.description || ''}
+                  className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                  rows={3}
+                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleGenerateDescription}
+                    disabled={generatingDescription || !editingItem?.name}
+                  >
+                    {generatingDescription ? 'Generating...' : '✨ Generate with AI'}
+                  </Button>
+                  {aiDescription && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        const textarea = document.getElementById('description') as HTMLTextAreaElement;
+                        if (textarea) textarea.value = aiDescription;
+                        setAiDescription('');
+                      }}
+                    >
+                      Use AI suggestion
+                    </Button>
+                  )}
+                </div>
+                {aiDescription && (
+                  <div className="rounded-md bg-blue-50 p-2 text-sm text-blue-900">
+                    <strong>AI Suggestion:</strong> {aiDescription}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div>
@@ -512,13 +628,44 @@ export default function MenuEditor() {
 
             <div>
               <label htmlFor="dietaryTags" className="block text-sm font-medium">Dietary Tags (comma-separated)</label>
-              <Input
-                id="dietaryTags"
-                name="dietaryTags"
-                defaultValue={editingItem?.dietaryTags || ''}
-                placeholder="GF, V, VG"
-                className="mt-1"
-              />
+              <div className="mt-1 space-y-2">
+                <Input
+                  id="dietaryTags"
+                  name="dietaryTags"
+                  defaultValue={editingItem?.dietaryTags || ''}
+                  placeholder="GF, V, VG"
+                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleAnalyzeAllergens}
+                    disabled={analyzingAllergens}
+                  >
+                    {analyzingAllergens ? 'Analyzing...' : '🔍 Analyze Allergens'}
+                  </Button>
+                  {aiAllergens.length > 0 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        const input = document.getElementById('dietaryTags') as HTMLInputElement;
+                        if (input) input.value = aiAllergens.join(', ');
+                        setAiAllergens([]);
+                      }}
+                    >
+                      Use detected tags
+                    </Button>
+                  )}
+                </div>
+                {aiAllergens.length > 0 && (
+                  <div className="rounded-md bg-yellow-50 p-2 text-sm text-yellow-900">
+                    <strong>Detected:</strong> {aiAllergens.join(', ')}
+                  </div>
+                )}
+              </div>
               <label className="mt-2 flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -631,6 +778,10 @@ export default function MenuEditor() {
                       formData.append('intent', 'bulk-toggle');
                       formData.append('itemIds', JSON.stringify(Array.from(selectedItems)));
                       formData.append('available', 'true');
+                      formData.append('versions', JSON.stringify(items.reduce((acc, it) => {
+                        if (selectedItems.has(it.id)) acc[it.id] = it.version;
+                        return acc;
+                      }, {} as Record<number, number>)));
                       bulkFetcher.submit(formData, { method: 'post' });
                       setSelectedItems(new Set());
                     }}
@@ -645,6 +796,10 @@ export default function MenuEditor() {
                       formData.append('intent', 'bulk-toggle');
                       formData.append('itemIds', JSON.stringify(Array.from(selectedItems)));
                       formData.append('available', 'false');
+                      formData.append('versions', JSON.stringify(items.reduce((acc, it) => {
+                        if (selectedItems.has(it.id)) acc[it.id] = it.version;
+                        return acc;
+                      }, {} as Record<number, number>)));
                       bulkFetcher.submit(formData, { method: 'post' });
                       setSelectedItems(new Set());
                     }}
@@ -718,6 +873,7 @@ export default function MenuEditor() {
                     <fetcher.Form method="post">
                       <input type="hidden" name="intent" value="toggle-availability" />
                       <input type="hidden" name="itemId" value={item.id} />
+                      <input type="hidden" name="version" value={item.version} />
                       <Button
                         type="submit"
                         variant={item.isAvailable ? 'outline' : 'default'}

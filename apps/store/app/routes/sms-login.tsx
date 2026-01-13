@@ -1,8 +1,10 @@
-import type { ActionFunctionArgs } from '@remix-run/cloudflare';
+import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/cloudflare';
 import { json } from '@remix-run/cloudflare';
-import { Form, useActionData, useSearchParams, useNavigation } from '@remix-run/react';
+import { Form, useActionData, useSearchParams, useNavigation, useLoaderData } from '@remix-run/react';
 import { useState } from 'react';
 import { createOTP, verifyOTP, getUserByPhone, createUserSession } from '~/services/auth.server';
+import { sendSms } from '~/services/sms.server';
+import { resolveTenantId } from '~/utils/tenant.server';
 import { Button, Input, Card, CardHeader, CardTitle, CardContent } from '@diner/ui';
 
 type ActionData = {
@@ -10,7 +12,13 @@ type ActionData = {
   success?: boolean;
   codeSent?: boolean;
   phone?: string;
+  tenantId?: string;
 };
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  const url = new URL(request.url);
+  return json({ tenantHint: url.searchParams.get('tenant') || '' });
+}
 
 export async function action({ request, context }: ActionFunctionArgs) {
   const env = context.env as {
@@ -24,6 +32,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
   const formData = await request.formData();
   const intent = formData.get('intent');
+  const tenantOverride = formData.get('tenant');
 
   if (intent === 'send-code') {
     const phone = formData.get('phone');
@@ -31,8 +40,18 @@ export async function action({ request, context }: ActionFunctionArgs) {
       return json<ActionData>({ error: 'Valid phone number required' }, { status: 400 });
     }
 
-    // For now, assume single tenant (same as magic link)
-    const tenantId = 'tenant-joes-diner';
+    const tenantId = (typeof tenantOverride === 'string' && tenantOverride)
+      ? tenantOverride
+      : (await resolveTenantId(request, env)) || 'tenant-joes-diner';
+
+    // Simple rate limit: max 5 codes per hour per phone
+    const rateKey = `otp:rate:${phone}`;
+    const current = parseInt((await env.KV.get(rateKey)) || '0', 10) || 0;
+    if (current >= 5) {
+      return json<ActionData>({ error: 'Too many requests. Try again later.' }, { status: 429 });
+    }
+
+    await env.KV.put(rateKey, String(current + 1), { expirationTtl: 60 * 60 });
 
     const user = await getUserByPhone(env, phone, tenantId);
     if (!user) {
@@ -41,11 +60,15 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     const code = await createOTP(env, phone, tenantId);
 
-    // TODO: Send SMS via Twilio
-    // For now, log it
-    console.log(`OTP Code for ${phone}: ${code}`);
+    const sms = await sendSms(env, phone, `Your diner login code is: ${code}`);
+    if (!sms.success && !sms.skipped) {
+      return json<ActionData>({ error: 'Failed to send code. Try again.' }, { status: 500 });
+    }
+    if (sms.skipped) {
+      console.log(`OTP Code for ${phone}: ${code}`);
+    }
 
-    return json<ActionData>({ success: true, codeSent: true, phone });
+    return json<ActionData>({ success: true, codeSent: true, phone, tenantId });
   }
 
   if (intent === 'verify-code') {
@@ -57,27 +80,29 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
 
     const tenantId = await verifyOTP(env, phone, code);
-    if (!tenantId) {
+    const resolvedTenant = (typeof tenantOverride === 'string' && tenantOverride) || tenantId;
+    if (!tenantId || !resolvedTenant) {
       return json<ActionData>({ error: 'Invalid or expired code' }, { status: 400 });
     }
 
-    const user = await getUserByPhone(env, phone, tenantId);
+    const user = await getUserByPhone(env, phone, resolvedTenant);
     if (!user) {
       return json<ActionData>({ error: 'User not found' }, { status: 404 });
     }
 
     const permissions = user.permissions ? JSON.parse(user.permissions) : [];
 
-    return createUserSession(env, user.id, tenantId, user.email, user.role, permissions, '/dashboard');
+    return createUserSession(env, user.id, resolvedTenant, user.email, user.role, permissions, '/dashboard');
   }
 
   return json<ActionData>({ error: 'Invalid request' }, { status: 400 });
 }
 
 export default function SmsLogin() {
-  const actionData = useActionData<typeof action>();
+  const actionData = (useActionData<ActionData>() ?? {}) as ActionData;
   const navigation = useNavigation();
   const [searchParams] = useSearchParams();
+  const { tenantHint } = useLoaderData<{ tenantHint: string }>();
   const isSubmitting = navigation.state === 'submitting';
 
   if (actionData?.codeSent) {
@@ -90,7 +115,8 @@ export default function SmsLogin() {
           <CardContent>
             <Form method="post" className="space-y-4">
               <input type="hidden" name="intent" value="verify-code" />
-              <input type="hidden" name="phone" value={actionData.phone} />
+              <input type="hidden" name="phone" value={actionData.phone || ''} />
+              <input type="hidden" name="tenant" value={actionData.tenantId || tenantHint} />
               
               <div>
                 <label htmlFor="code" className="block text-sm font-medium">
@@ -136,6 +162,21 @@ export default function SmsLogin() {
         <CardContent>
           <Form method="post" className="space-y-4">
             <input type="hidden" name="intent" value="send-code" />
+            <div>
+              <label htmlFor="tenant" className="block text-sm font-medium">
+                Tenant (slug or domain)
+              </label>
+              <Input
+                id="tenant"
+                name="tenant"
+                type="text"
+                autoComplete="off"
+                placeholder="joes-diner or joesdiner.com"
+                defaultValue={actionData.tenantId || tenantHint}
+                className="mt-1"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">If left blank, we'll use your current host.</p>
+            </div>
             
             <div>
               <label htmlFor="phone" className="block text-sm font-medium">

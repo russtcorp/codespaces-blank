@@ -1,6 +1,8 @@
 import type { ActionFunctionArgs } from '@remix-run/cloudflare';
 import { json } from '@remix-run/cloudflare';
 import { requireUserSession } from '~/services/auth.server';
+import { requirePermission } from '~/utils/permissions';
+import { PERMISSIONS } from '@diner/config';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
@@ -8,6 +10,11 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
 export async function action({ request, context }: ActionFunctionArgs) {
   const env = context.env as { DB: D1Database; KV: KVNamespace; R2: R2Bucket; SESSION_SECRET?: string };
   const session = await requireUserSession(request, env);
+
+  // Image uploads require menu edit access
+  if (session.userId) {
+    requirePermission(session as any, PERMISSIONS.MENU_FULL_ACCESS);
+  }
 
   try {
     const formData = await request.formData();

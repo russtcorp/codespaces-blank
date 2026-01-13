@@ -8,6 +8,7 @@ import { requireUserSession } from '~/services/auth.server';
 import { createMagicLinkToken } from '~/services/auth.server';
 import { sendMagicLinkEmail } from '~/services/email.server';
 import { USER_ROLES, PERMISSIONS, ROLE_PERMISSIONS } from '@diner/config';
+import { requirePermission } from '~/utils/permissions';
 import {
   Button,
   Input,
@@ -36,6 +37,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const env = context.env as { DB: D1Database; KV: KVNamespace; SESSION_SECRET?: string };
   const session = await requireUserSession(request, env);
 
+    // Owners/admins only
+    requirePermission(session, PERMISSIONS.SETTINGS_EDIT);
+
   const db = createDb(env.DB);
   const tdb = createTenantDb(db, session.tenantId);
 
@@ -58,6 +62,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 export async function action({ request, context }: ActionFunctionArgs) {
   const env = context.env as { DB: D1Database; KV: KVNamespace; SESSION_SECRET?: string };
   const session = await requireUserSession(request, env);
+
+  requirePermission(session, PERMISSIONS.SETTINGS_EDIT);
 
   const formData = await request.formData();
   const intent = formData.get('intent');
@@ -88,7 +94,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
       const token = await createMagicLinkToken(env, email.toString(), session.tenantId);
       const verifyUrl = new URL('/verify', request.url);
       verifyUrl.searchParams.set('token', token);
-      await sendMagicLinkEmail(env, email.toString(), verifyUrl.toString());
+      await sendMagicLinkEmail(env as any, email.toString(), verifyUrl.toString());
 
       return json({ success: true, message: 'User added and invite sent' });
     }
@@ -114,7 +120,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         return json({ error: 'Cannot delete the last owner' }, { status: 400 });
       }
 
-      await db.delete(authorizedUsers).where(eq(authorizedUsers.id, userId));
+      await tdb.softDelete(authorizedUsers, eq(authorizedUsers.id, userId));
 
       return json({ success: true, message: 'User removed' });
     }

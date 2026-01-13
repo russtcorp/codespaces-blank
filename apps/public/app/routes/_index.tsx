@@ -1,6 +1,6 @@
 import { json, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/cloudflare';
 import { useLoaderData } from '@remix-run/react';
-import { createDb, createTenantDb, businessInfo, themeConfig, categories, menuItems, operatingHours, specialDates } from '@diner/db';
+import { createDb, createTenantDb, businessInfo, themeConfig, categories, menuItems, operatingHours, specialDates, tenants } from '@diner/db';
 import { eq, and, isNull } from 'drizzle-orm';
 import { resolveTenantId } from '~/utils/tenant.server';
 import { computeStatus } from '~/utils/status';
@@ -31,9 +31,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const tdb = createTenantDb(db, tenantId);
 
   const [biz] = await tdb.select(businessInfo);
+  const [tenant] = await tdb.select(tenants);
   const [theme] = await tdb.select(themeConfig);
 
-  const cats = await tdb.select(categories, and(eq(categories.isVisible, true), isNull(categories.deletedAt as any))); // deletedAt not in schema for categories but safe
+  const cats = await tdb.select(categories, eq(categories.isVisible, true));
   const items = await tdb.select(menuItems, eq(menuItems.isAvailable, true));
   const hours = await tdb.select(operatingHours);
   const specials = await tdb.select(specialDates);
@@ -62,7 +63,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     })
     .filter(Boolean) as LoaderData['menu'];
 
-  const status = computeStatus({ operatingHours: hours, specialDates: specials, emergencyClosed });
+  const status = computeStatus({
+    operatingHours: hours,
+    specialDates: specials,
+    emergencyClosed,
+    timezone: biz?.timezone,
+  });
 
   const themeStyle = `:root {${[
     ['--primary', theme?.primaryColor ?? '#b22222'],
@@ -74,7 +80,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     .join('')}}`;
 
   return json<LoaderData>({
-    businessName: biz?.businessName ?? 'Our Diner',
+    businessName: tenant?.businessName ?? 'Our Diner',
     phone: biz?.phonePublic,
     address: biz?.address,
     status,

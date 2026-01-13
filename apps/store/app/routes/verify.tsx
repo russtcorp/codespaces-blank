@@ -7,18 +7,20 @@ import { Button, Card, CardHeader, CardTitle, CardContent } from '@diner/ui';
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const token = url.searchParams.get('token');
+  const tenantHint = url.searchParams.get('tenant') || '';
 
   if (!token) {
     return redirect('/login');
   }
 
-  return json({ token });
+  return json({ token, tenantHint });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
   const env = context.env as { DB: D1Database; KV: KVNamespace; SESSION_SECRET?: string };
   const formData = await request.formData();
   const token = formData.get('token');
+  const tenantOverride = formData.get('tenant');
 
   if (!token || typeof token !== 'string') {
     return json({ error: 'Invalid token' }, { status: 400 });
@@ -30,7 +32,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
   }
 
   const { email, tenantId } = verified;
-  const user = await getUserByEmail(env, email, tenantId);
+  const resolvedTenant = typeof tenantOverride === 'string' && tenantOverride ? tenantOverride : tenantId;
+  const user = await getUserByEmail(env, email, resolvedTenant);
 
   if (!user) {
     return json({ error: 'User not found' }, { status: 404 });
@@ -41,7 +44,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
   return createUserSession(
     env,
     user.id,
-    tenantId,
+    resolvedTenant,
     user.email,
     user.role,
     permissions,
@@ -50,7 +53,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function Verify() {
-  const { token } = useLoaderData<typeof loader>();
+  const { token, tenantHint } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === 'submitting';
 
@@ -66,6 +69,7 @@ export default function Verify() {
           </p>
           <Form method="post">
             <input type="hidden" name="token" value={token} />
+            <input type="hidden" name="tenant" value={tenantHint} />
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? 'Signing in...' : 'Confirm and sign in'}
             </Button>

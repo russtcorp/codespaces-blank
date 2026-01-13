@@ -21,9 +21,19 @@ export function computeStatus(options: {
   operatingHours: OperatingHours[];
   specialDates: SpecialDate[];
   emergencyClosed?: boolean;
+  timezone?: string;
 }): StatusResult {
-  const { operatingHours, specialDates, emergencyClosed = false } = options;
-  const now = options.now ?? new Date();
+  const { operatingHours, specialDates, emergencyClosed = false, timezone } = options;
+  const baseNow = options.now ?? new Date();
+  const now = (() => {
+    if (!timezone) return baseNow;
+    try {
+      // Convert to the tenant's timezone using Intl; fallback to base time on error
+      return new Date(baseNow.toLocaleString('en-US', { timeZone: timezone }));
+    } catch {
+      return baseNow;
+    }
+  })();
 
   // 1) Emergency close wins
   if (emergencyClosed) {

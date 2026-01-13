@@ -28,7 +28,9 @@
     "@dnd-kit/sortable": "^9.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "zod": "^3.24.1",
-    "date-fns": "^4.1.0"
+    "date-fns": "^4.1.0",
+    "drizzle-orm": "^0.30.10",
+    "stripe": "^14.17.0"
   },
   "devDependencies": {
     "@diner/ts-config": "workspace:*",

@@ -15,14 +15,35 @@ new_classes = ["DinerAgent"]
 # D1 Database binding
 [[d1_databases]]
 binding = "DB"
-database_name = "diner-core"
-database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+database_name = "russtcorp-db"
+database_id = "dc7eca2d-6157-41d1-9841-26969bc20777"
 
-# AI binding
+# KV binding for conversation history cache
+[[kv_namespaces]]
+binding = "KV_CACHE"
+id = "fcedd38867f442338ad6ba5a2c1274b2"
+
+# R2 binding for audit logs
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "diner-assets"
+
+# AI binding (Llama 3, Vision, Whisper)
 [ai]
 binding = "AI"
 
-# Environment variables (secrets - set with wrangler secret put)
+# Production environment
+[env.production]
+vars = { ENVIRONMENT = "production", AI_GATEWAY_ENABLED = "true" }
+
+# Development environment
+[env.development]
+vars = { ENVIRONMENT = "development", AI_GATEWAY_ENABLED = "false" }
+
+# Environment variables/secrets (set with: wrangler secret put VARIABLE_NAME)
+# CLOUDFLARE_AI_GATEWAY_URL
+# CLOUDFLARE_AI_GATEWAY_TOKEN
 # TWILIO_ACCOUNT_SID
 # TWILIO_AUTH_TOKEN
 # TWILIO_PHONE_NUMBER
+# SESSION_SECRET

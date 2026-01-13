@@ -6,6 +6,8 @@ import { createDb, createTenantDb, businessInfo, specialDates } from '@diner/db'
 import { eq } from 'drizzle-orm';
 import { requireUserSession } from '~/services/auth.server';
 import { invalidatePublicCache } from '~/utils/cache.server';
+import { requirePermission } from '~/utils/permissions';
+import { PERMISSIONS } from '@diner/config';
 import {
   Button,
   Input,
@@ -31,6 +33,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const env = context.env as { DB: D1Database; KV: KVNamespace; SESSION_SECRET?: string };
   const session = await requireUserSession(request, env);
 
+  requirePermission(session, PERMISSIONS.HOURS_EDIT);
+
   const db = createDb(env.DB);
   const tdb = createTenantDb(db, session.tenantId);
 
@@ -40,12 +44,15 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   return json({
     emergencyClosed: biz?.marketingPixels ? JSON.parse(biz.marketingPixels).emergency_closed : false,
     specialDates: dates as SpecialDate[],
+    isHiring: biz?.isHiring ?? false,
   });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
   const env = context.env as { DB: D1Database; KV: KVNamespace; SESSION_SECRET?: string };
   const session = await requireUserSession(request, env);
+
+  requirePermission(session, PERMISSIONS.HOURS_EDIT);
 
   const formData = await request.formData();
   const intent = formData.get('intent');
@@ -113,6 +120,30 @@ export async function action({ request, context }: ActionFunctionArgs) {
       return json({ success: true, message: 'Special date removed' });
     }
 
+    if (intent === 'toggle-hiring') {
+      const [biz] = await tdb.select(businessInfo);
+      const newHiringStatus = !biz?.isHiring;
+
+      if (biz) {
+        await tdb.update(
+          businessInfo,
+          { isHiring: newHiringStatus },
+          eq(businessInfo.tenantId, session.tenantId)
+        );
+      } else {
+        await tdb.insert(businessInfo, {
+          tenantId: session.tenantId,
+          isHiring: newHiringStatus,
+        });
+      }
+
+      await invalidatePublicCache(env, session.tenantId);
+      return json({
+        success: true,
+        message: newHiringStatus ? 'Hiring mode enabled' : 'Hiring mode disabled',
+      });
+    }
+
     return json({ error: 'Unknown intent' }, { status: 400 });
   } catch (error) {
     console.error('Operations action error:', error);
@@ -121,7 +152,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function Operations() {
-  const { emergencyClosed, specialDates: dates } = useLoaderData<typeof loader>();
+  const { emergencyClosed, specialDates: dates, isHiring } = useLoaderData<typeof loader>();
   const [showAddDate, setShowAddDate] = useState(false);
   const [emergencyReason, setEmergencyReason] = useState('');
   const fetcher = useFetcher();
@@ -170,6 +201,33 @@ export default function Operations() {
               className="w-full"
             >
               {emergencyClosed ? 'Deactivate Emergency Close' : 'Activate Emergency Close'}
+            </Button>
+          </fetcher.Form>
+        </CardContent>
+      </Card>
+
+      {/* Hiring Toggle */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>👥 Hiring</span>
+            <span className={`text-sm ${isHiring ? 'text-green-600' : 'text-gray-500'}`}>
+              {isHiring ? 'Active' : 'Inactive'}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Display a "Now Hiring" banner on your public site to attract job applicants.
+          </p>
+          <fetcher.Form method="post">
+            <input type="hidden" name="intent" value="toggle-hiring" />
+            <Button
+              type="submit"
+              variant={isHiring ? 'outline' : 'default'}
+              className="w-full"
+            >
+              {isHiring ? 'Disable Hiring Mode' : 'Enable Hiring Mode'}
             </Button>
           </fetcher.Form>
         </CardContent>

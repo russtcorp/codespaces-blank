@@ -21,6 +21,7 @@ const navigation = [
   { name: 'Hours', href: '/dashboard/hours', icon: '🕐' },
   { name: 'Operations', href: '/dashboard/operations', icon: '🚨' },
   { name: 'Users', href: '/dashboard/users', icon: '👥' },
+  { name: 'Billing', href: '/dashboard/billing', icon: '💳' },
   { name: 'Settings', href: '/dashboard/settings', icon: '⚙️' },
 ];
 

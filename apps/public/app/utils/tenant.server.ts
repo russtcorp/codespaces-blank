@@ -7,10 +7,12 @@ type Env = {
 };
 
 const KV_TENANT_TTL_SECONDS = 60 * 60; // 60 minutes
+const TENANT_DOMAIN_INDEX_PREFIX = 'tenant-domains:';
 
 function normalizeHost(host: string) {
   // Remove port and lowercase
-  return host.split(':')[0].toLowerCase();
+  const base = host.split(':')[0] ?? host;
+  return base.toLowerCase();
 }
 
 export async function resolveTenantId(request: Request, env: Env): Promise<string | null> {
@@ -36,6 +38,12 @@ export async function resolveTenantId(request: Request, env: Env): Promise<strin
 
   if (match?.id) {
     await env.KV.put(`tenant:${host}`, match.id, { expirationTtl: KV_TENANT_TTL_SECONDS });
+
+    // Track domains per tenant to enable invalidation later
+    const indexKey = `${TENANT_DOMAIN_INDEX_PREFIX}${match.id}`;
+    const existing = (await env.KV.get(indexKey, 'json')) as string[] | null;
+    const next = Array.from(new Set([...(existing ?? []), host]));
+    await env.KV.put(indexKey, JSON.stringify(next), { expirationTtl: KV_TENANT_TTL_SECONDS });
     return match.id;
   }
 
@@ -44,4 +52,11 @@ export async function resolveTenantId(request: Request, env: Env): Promise<strin
 
 export async function invalidateTenantCache(env: Env, host: string) {
   await env.KV.delete(`tenant:${normalizeHost(host)}`);
+}
+
+export async function invalidateTenantDomains(env: Env, tenantId: string) {
+  const indexKey = `${TENANT_DOMAIN_INDEX_PREFIX}${tenantId}`;
+  const hosts = ((await env.KV.get(indexKey, 'json')) as string[] | null) ?? [];
+  await Promise.all(hosts.map((h) => env.KV.delete(`tenant:${h}`)));
+  await env.KV.delete(indexKey);
 }

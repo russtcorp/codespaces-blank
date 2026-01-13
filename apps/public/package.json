@@ -8,6 +8,7 @@
     "build": "remix vite:build",
     "deploy": "wrangler pages deploy ./build/client",
     "preview": "wrangler pages dev ./build/client",
+    "test": "vitest run",
     "typecheck": "tsc",
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "clean": "rm -rf build .wrangler .turbo node_modules"
@@ -19,6 +20,7 @@
     "@diner/db": "workspace:*",
     "@diner/ui": "workspace:*",
     "@diner/config": "workspace:*",
+    "drizzle-orm": "^0.30.10",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "isbot": "^5.1.21"

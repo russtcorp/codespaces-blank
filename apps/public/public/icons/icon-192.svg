@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" role="img" aria-label="Diner icon">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b22222"/>
+      <stop offset="100%" stop-color="#f46b45"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="24" fill="url(#g)"/>
+  <text x="50%" y="54%" text-anchor="middle" font-size="72" font-family="Inter,Arial,sans-serif" fill="#fff" font-weight="700">D</text>
+</svg>
