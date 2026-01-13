@@ -1,9 +1,0 @@
-{
-  "extends": "@diner/ts-config/worker.json",
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", ".wrangler"],
-  "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src"
-  }
-}
