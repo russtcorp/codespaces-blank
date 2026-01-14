@@ -1,0 +1,43 @@
+name = "diner-agent"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+AI_MODEL_WHISPER = "@cf/openai/whisper"
+AI_MODEL_EMBEDDING = "@cf/baai/bge-base-en-v1.5"
+TWILIO_AUTH_TOKEN = "changeme"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "diner-core"
+database_id = "local-db-id"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "local-kv-id"
+
+[[r2_buckets]]
+binding = "R2_ASSETS"
+bucket_name = "diner-assets"
+
+[[durable_objects]]
+binding = "AGENT_DO"
+class_name = "DinerAgent"
+
+[[queues.consumers]]
+queue = "sms-inbound"
+binding = "SMS_INBOUND"
+
+[[queues.producers]]
+queue = "sms-inbound"
+binding = "SMS_INBOUND_PRODUCER"
+
+[[queues.producers]]
+queue = "sms-outbound"
+binding = "SMS_OUTBOUND"
+
+[ai]
+binding = "AI"
+[vectorize]
+binding = "VECTORIZE"
+index_name = "diner-menu-index"

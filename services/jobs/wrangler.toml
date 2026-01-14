@@ -3,6 +3,11 @@ type = "service"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
+[vars]
+TWILIO_ACCOUNT_SID = "changeme"
+TWILIO_AUTH_TOKEN = "changeme"
+TWILIO_PHONE_NUMBER = "+15550000000"
+
 # Bindings
 [[d1_databases]]
 binding = "DB"
@@ -17,11 +22,7 @@ bucket_name = "diner-assets"
 binding = "KV"
 id = "local-kv-id"
 
-# Queues
-[[queues.producers]]
-binding = "SMS_OUTBOUND_QUEUE"
-queue = "sms-outbound"
-
+# Queues (producers)
 [[queues.producers]]
 binding = "SOCIAL_SYNC_QUEUE"
 queue = "social-media-sync"
@@ -29,6 +30,11 @@ queue = "social-media-sync"
 [[queues.producers]]
 binding = "ROI_REPORTS_QUEUE"
 queue = "roi-reports"
+
+# Queues (consumers)
+[[queues.consumers]]
+binding = "SMS_OUTBOUND"
+queue = "sms-outbound"
 
 # Cron Triggers
 [[triggers.crons]]
