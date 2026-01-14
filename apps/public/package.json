@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "remix vite:build",
+    "build:snapshot": "remix vite:build && node scripts/generate-doomsday-snapshot.js",
     "deploy": "wrangler pages deploy ./build/client",
     "lint": "eslint app"
   },

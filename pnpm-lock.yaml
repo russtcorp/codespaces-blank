@@ -328,6 +328,19 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
+  packages/scraper:
+    dependencies:
+      '@cloudflare/puppeteer':
+        specifier: ^1.0.4
+        version: 1.0.4
+      cheerio:
+        specifier: ^1.1.2
+        version: 1.1.2
+    devDependencies:
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
   packages/ui:
     dependencies:
       '@radix-ui/react-slot':
@@ -388,6 +401,25 @@ importers:
         version: 5.9.3
       wrangler:
         specifier: ^3.90.0
+        version: 3.114.17(@cloudflare/workers-types@4.20260113.0)
+
+  services/workflows:
+    dependencies:
+      '@diner-saas/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@diner-saas/scraper':
+        specifier: workspace:*
+        version: link:../../packages/scraper
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^4.20240208.0
+        version: 4.20260113.0
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      wrangler:
+        specifier: ^3.78.12
         version: 3.114.17(@cloudflare/workers-types@4.20260113.0)
 
 packages:

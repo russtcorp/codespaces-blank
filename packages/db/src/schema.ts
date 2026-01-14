@@ -139,3 +139,4 @@ export const hostMapping = sqliteTable("host_mapping", {
   host: text("host").unique(),
   isPrimary: integer("is_primary", { mode: "boolean" }).default(false),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
