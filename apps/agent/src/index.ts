@@ -1,5 +1,7 @@
 import { verifyTwilioSignature, parseFormBody } from "./utils/twilio";
 import { InboundMessage } from "./durable-object";
+import { handleVoice as handleVoiceAI } from "./handlers/voice";
+import { handleVision } from "./handlers/vision";
 
 export interface Env {
   AGENT_DO: DurableObjectNamespace;
@@ -16,12 +18,25 @@ export interface Env {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    
+    // Twilio SMS Webhook
     if (url.pathname === "/sms" && request.method === "POST") {
       return handleSms(request, env);
     }
 
+    // Twilio Voice Webhook
     if (url.pathname === "/voice" && request.method === "POST") {
       return handleVoice(request, env);
+    }
+
+    // Voice AI (Whisper) - Direct audio transcription
+    if (url.pathname === "/api/voice" && request.method === "POST") {
+      return handleVoiceAI(request, env);
+    }
+
+    // Vision AI (Llama Vision) - Image analysis
+    if (url.pathname === "/api/vision" && request.method === "POST") {
+      return handleVision(request, env);
     }
 
     return new Response("Not Found", { status: 404 });

@@ -16,6 +16,14 @@ bucket_name = "diner-assets"
 binding = "KV"
 id = "local-kv-id"
 
+# Browser Rendering API
+[browser]
+binding = "BROWSER"
+
+# Workers AI
+[ai]
+binding = "AI"
+
 [env.production]
 routes = [
   { pattern = "admin.diner-saas.com", zone_name = "diner-saas.com" }

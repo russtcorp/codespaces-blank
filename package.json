@@ -33,16 +33,20 @@
     "pnpm": ">=9"
   },
   "dependencies": {
+    "@cloudflare/puppeteer": "^1.0.4",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@react-pdf/renderer": "^4.3.2",
+    "@resvg/resvg-js": "^2.6.2",
+    "cheerio": "^1.1.2",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "qrcode": "^1.5.4",
     "recharts": "^3.6.0",
     "remix-auth": "^4.2.0",
     "remix-auth-form": "^3.0.0",
+    "satori": "^0.18.3",
     "zod": "^4.3.5",
     "zod-form-data": "^3.0.1"
   }
