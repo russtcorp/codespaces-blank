@@ -1,8 +1,9 @@
 import { redirect, type LoaderFunctionArgs } from "@remix-run/cloudflare";
-import { authenticator } from "~/services/auth.server";
-import { commitSession, getSession } from "~/services/session.server";
+import { getAuthenticator } from "~/services/auth.server";
+import { getSession, commitSession } from "~/services/session.server";
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  const env = (context as any).cloudflare?.env;
   const url = new URL(request.url);
   const token = url.searchParams.get("token");
   const email = url.searchParams.get("email");
@@ -11,7 +12,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return redirect("/auth/login?error=invalid-link");
   }
 
-  // Create a new request with form data
+  // Create a new request with form data for FormStrategy
   const formData = new FormData();
   formData.append("email", email);
   formData.append("token", token);
@@ -22,10 +23,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     headers: request.headers,
   });
 
-  // Copy the env context
-  (newRequest as any).env = (request as any).env;
-
   try {
+    const authenticator = getAuthenticator(env);
     // Manually authenticate and get the user
     const user = await authenticator.authenticate("magic-link", newRequest);
     
@@ -33,14 +32,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
       return redirect("/auth/login?error=invalid-link");
     }
 
-    // Get or create session
-    const session = await getSession(request.headers.get("Cookie"));
+    // Get or create session in KV
+    const session = await getSession(request, env);
     session.set("user", user);
 
     // Commit session and redirect
     return redirect("/dashboard", {
       headers: {
-        "Set-Cookie": await commitSession(session),
+        "Set-Cookie": await commitSession(session, env),
       },
     });
   } catch (error) {

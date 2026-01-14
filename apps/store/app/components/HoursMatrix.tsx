@@ -1,6 +1,7 @@
+import * as React from "react";
 import { useState } from "react";
-import { Button } from "@diner-saas/ui/components/button";
-import { Input } from "@diner-saas/ui/components/input";
+import { Button } from "@diner-saas/ui/button";
+import { Input } from "@diner-saas/ui/input";
 import type { FetcherWithComponents } from "@remix-run/react";
 
 interface OperatingHour {
@@ -108,7 +109,7 @@ export function HoursMatrix({ hours, fetcher }: HoursMatrixProps) {
                     <Input
                       type="time"
                       value={slot.start}
-                      onChange={(e) =>
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                         handleSlotChange(index, "start", e.target.value)
                       }
                       className="w-32"
@@ -117,7 +118,7 @@ export function HoursMatrix({ hours, fetcher }: HoursMatrixProps) {
                     <Input
                       type="time"
                       value={slot.end}
-                      onChange={(e) =>
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                         handleSlotChange(index, "end", e.target.value)
                       }
                       className="w-32"

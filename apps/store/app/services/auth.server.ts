@@ -1,8 +1,9 @@
 import { Authenticator } from "remix-auth";
 import { FormStrategy } from "remix-auth-form";
-import { eq, and } from "drizzle-orm";
-import { db, authorizedUsers } from "@diner-saas/db";
-import { sessionStorage } from "./session.server";
+import { eq, and, isNull } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/d1";
+import { authorizedUsers } from "@diner-saas/db";
+import { getSessionStorage } from "./session.server";
 
 export interface User {
   id: number;
@@ -14,77 +15,84 @@ export interface User {
   permissions: string[];
 }
 
-export const authenticator = new Authenticator<User>(sessionStorage);
+/**
+ * Create an authenticator bound to the request's env (KV sessions)
+ */
+export function getAuthenticator(env: any) {
+  const sessionStorage = getSessionStorage(env);
+  const authenticator = new Authenticator<User>(sessionStorage);
 
-// Form Strategy for Magic Link verification
-authenticator.use(
-  new FormStrategy(async ({ form, request }) => {
-    const email = form.get("email");
-    const token = form.get("token");
+  // Form Strategy for Magic Link verification
+  authenticator.use(
+    new FormStrategy(async ({ form }) => {
+      const email = form.get("email");
+      const token = form.get("token");
 
-    if (typeof email !== "string" || typeof token !== "string") {
-      throw new Error("Invalid form data");
-    }
+      if (typeof email !== "string" || typeof token !== "string") {
+        throw new Error("Invalid form data");
+      }
 
-    // Get env from request context (Cloudflare specific)
-    const env = (request as any).env;
-    if (!env?.KV) {
-      throw new Error("KV binding not available");
-    }
+      if (!env?.KV) {
+        throw new Error("KV binding not available");
+      }
 
-    // Check if token exists in KV (format: magic_link:{token})
-    const storedEmail = await env.KV.get(`magic_link:${token}`);
-    
-    if (!storedEmail || storedEmail !== email) {
-      throw new Error("Invalid or expired magic link");
-    }
+      // Check if token exists in KV (format: magic_link:{token})
+      const storedEmail = await env.KV.get(`magic_link:${token}`);
+      
+      if (!storedEmail || storedEmail !== email) {
+        throw new Error("Invalid or expired magic link");
+      }
 
-    // Delete the token after use (one-time use)
-    await env.KV.delete(`magic_link:${token}`);
+      // Delete the token after use (one-time use)
+      await env.KV.delete(`magic_link:${token}`);
 
-    // Find the user in the database
-    const user = await db
-      .select()
-      .from(authorizedUsers)
-      .where(
-        and(
-          eq(authorizedUsers.email, email),
-          eq(authorizedUsers.deleted_at, null)
+      // Find the user in the database
+      const db = drizzle(env.DB);
+      const user = await db
+        .select()
+        .from(authorizedUsers)
+        .where(
+          and(
+            eq(authorizedUsers.email, email),
+            isNull(authorizedUsers.deletedAt)
+          )
         )
-      )
-      .get();
+        .get();
 
-    if (!user) {
-      throw new Error("User not found");
-    }
+      if (!user) {
+        throw new Error("User not found");
+      }
 
-    // Parse permissions JSON
-    let permissions: string[] = [];
-    try {
-      permissions = user.permissions ? JSON.parse(user.permissions) : [];
-    } catch (e) {
-      permissions = [];
-    }
+      // Parse permissions JSON
+      let permissions: string[] = [];
+      try {
+        permissions = user.permissions ? JSON.parse(user.permissions) : [];
+      } catch (e) {
+        permissions = [];
+      }
 
-    // Update last login timestamp
-    await db
-      .update(authorizedUsers)
-      .set({ last_login: new Date().toISOString() })
-      .where(eq(authorizedUsers.id, user.id))
-      .run();
+      // Update last login timestamp
+      await db
+        .update(authorizedUsers)
+        .set({ lastLogin: new Date().toISOString() })
+        .where(eq(authorizedUsers.id, user.id))
+        .run();
 
-    return {
-      id: user.id,
-      tenantId: user.tenant_id,
-      email: user.email,
-      phone: user.phone_number,
-      name: user.name,
-      role: user.role,
-      permissions,
-    };
-  }),
-  "magic-link"
-);
+      return {
+        id: user.id,
+        tenantId: user.tenantId || "",
+        email: user.email || "",
+        phone: user.phoneNumber,
+        name: user.name || "",
+        role: user.role || "owner",
+        permissions,
+      };
+    }),
+    "magic-link"
+  );
+
+  return authenticator;
+}
 
 /**
  * Generate and send a magic link to the user's email
@@ -95,13 +103,14 @@ export async function sendMagicLink(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Check if user exists
+    const db = drizzle(env.DB);
     const user = await db
       .select()
       .from(authorizedUsers)
       .where(
         and(
           eq(authorizedUsers.email, email),
-          eq(authorizedUsers.deleted_at, null)
+          isNull(authorizedUsers.deletedAt)
         )
       )
       .get();
@@ -164,7 +173,7 @@ export async function verifyTurnstile(
       }
     );
 
-    const data = await response.json();
+    const data: any = await response.json();
     return data.success === true;
   } catch (error) {
     console.error("Turnstile verification failed:", error);
@@ -182,9 +191,10 @@ export async function generate2FACode(
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   
   // Store in database
+  const db = drizzle(env.DB);
   await db
     .update(authorizedUsers)
-    .set({ security_challenge_code: code })
+    .set({ securityChallengeCode: code })
     .where(eq(authorizedUsers.id, userId))
     .run();
 
@@ -196,22 +206,24 @@ export async function generate2FACode(
  */
 export async function verify2FACode(
   userId: number,
-  code: string
+  code: string,
+  env: any
 ): Promise<boolean> {
+  const db = drizzle(env.DB);
   const user = await db
     .select()
     .from(authorizedUsers)
     .where(eq(authorizedUsers.id, userId))
     .get();
 
-  if (!user || user.security_challenge_code !== code) {
+  if (!user || user.securityChallengeCode !== code) {
     return false;
   }
 
   // Clear the code after successful verification
   await db
     .update(authorizedUsers)
-    .set({ security_challenge_code: null })
+    .set({ securityChallengeCode: null })
     .where(eq(authorizedUsers.id, userId))
     .run();
 

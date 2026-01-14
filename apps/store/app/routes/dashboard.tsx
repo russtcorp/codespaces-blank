@@ -1,9 +1,11 @@
 import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/cloudflare";
 import { Outlet, useLoaderData, Link, Form, useLocation } from "@remix-run/react";
-import { authenticator } from "~/services/auth.server";
-import { Button } from "@diner-saas/ui/components/button";
+import { getAuthenticator } from "~/services/auth.server";
+import { Button } from "@diner-saas/ui/button";
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  const env = (context as any).cloudflare?.env;
+  const authenticator = getAuthenticator(env);
   const user = await authenticator.isAuthenticated(request);
   
   if (!user) {
@@ -13,7 +15,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({ user });
 }
 
-export async function action({ request }: ActionFunctionArgs) {
+export async function action({ request, context }: ActionFunctionArgs) {
+  const env = (context as any).cloudflare?.env;
+  const authenticator = getAuthenticator(env);
   return await authenticator.logout(request, { redirectTo: "/auth/login" });
 }
 

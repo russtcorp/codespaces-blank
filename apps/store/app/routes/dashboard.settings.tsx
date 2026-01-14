@@ -1,19 +1,22 @@
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/cloudflare";
 import { useLoaderData, useFetcher, Link } from "@remix-run/react";
 import { authenticator } from "~/services/auth.server";
-import { db, authorizedUsers, businessSettings } from "@diner-saas/db";
 import { eq } from "drizzle-orm";
-import { Card } from "@diner-saas/ui/components/card";
-import { Button } from "@diner-saas/ui/components/button";
-import { Input } from "@diner-saas/ui/components/input";
+import { drizzle } from "drizzle-orm/d1";
+import { authorizedUsers, businessSettings } from "@diner-saas/db";
+import { Card } from "@diner-saas/ui/card";
+import { Button } from "@diner-saas/ui/button";
+import { Input } from "@diner-saas/ui/input";
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await authenticator.isAuthenticated(request);
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  const env = (context as any).cloudflare?.env;
+  const user = await getAuthenticator(env).isAuthenticated(request);
   
   if (!user) {
     throw new Response("Unauthorized", { status: 401 });
   }
 
+  const db = drizzle(env.DB);
   // Fetch user settings
   const userData = await db
     .select()
@@ -31,13 +34,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({ user, userData, settings });
 }
 
-export async function action({ request }: ActionFunctionArgs) {
-  const user = await authenticator.isAuthenticated(request);
+export async function action({ request, context }: ActionFunctionArgs) {
+  const env = (context as any).cloudflare?.env;
+  const user = await getAuthenticator(env).isAuthenticated(request);
   
   if (!user) {
     throw new Response("Unauthorized", { status: 401 });
   }
 
+  const db = drizzle(env.DB);
   const formData = await request.formData();
   const intent = formData.get("intent");
 

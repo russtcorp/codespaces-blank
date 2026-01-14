@@ -1,12 +1,16 @@
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/cloudflare";
 import { useLoaderData, useFetcher } from "@remix-run/react";
-import { authenticator } from "~/services/auth.server";
-import { db, menuItems, categories } from "@diner-saas/db";
+import { getAuthenticator } from "~/services/auth.server";
 import { eq, and } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/d1";
+import { categories, menuItems } from "@diner-saas/db";
 import { VisualEditor } from "~/components/VisualEditor";
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  const env = (context as any).cloudflare?.env;
+  const authenticator = getAuthenticator(env);
   const user = await authenticator.isAuthenticated(request);
+  const db = drizzle(env.DB);
   
   if (!user) {
     throw new Response("Unauthorized", { status: 401 });
@@ -32,20 +36,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
     .all();
 
   // Group items by category
-  const categoriesWithItems = tenantCategories.map((category) => ({
+  const categoriesWithItems = tenantCategories.map((category: any) => ({
     ...category,
-    items: tenantMenuItems.filter((item) => item.category_id === category.id),
+    items: tenantMenuItems.filter((item: any) => item.category_id === category.id),
   }));
 
   return json({ 
     categories: categoriesWithItems,
     user,
-    cloudflareImagesUrl: (request as any).env?.CLOUDFLARE_IMAGES_URL || "",
+    cloudflareImagesUrl: env?.CLOUDFLARE_IMAGES_URL || "",
   });
 }
 
-export async function action({ request }: ActionFunctionArgs) {
+export async function action({ request, context }: ActionFunctionArgs) {
+  const env = (context as any).cloudflare?.env;
+  const authenticator = getAuthenticator(env);
   const user = await authenticator.isAuthenticated(request);
+  const db = drizzle(env.DB);
   
   if (!user) {
     throw new Response("Unauthorized", { status: 401 });
@@ -224,7 +231,6 @@ export async function action({ request }: ActionFunctionArgs) {
 
       case "request-upload-url": {
         // Request a Direct Creator Upload URL from Cloudflare Images
-        const env = (request as any).env;
         const accountId = env.CLOUDFLARE_ACCOUNT_ID;
         const apiToken = env.CLOUDFLARE_API_TOKEN;
 
@@ -238,7 +244,7 @@ export async function action({ request }: ActionFunctionArgs) {
           }
         );
 
-        const data = await response.json();
+        const data: any = await response.json();
 
         if (!data.success) {
           return json({ error: "Failed to get upload URL" }, { status: 500 });

@@ -1,11 +1,14 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/cloudflare";
 import { Form, useActionData, useNavigation } from "@remix-run/react";
-import { authenticator } from "~/services/auth.server";
-import { Button } from "@diner-saas/ui/components/button";
-import { Input } from "@diner-saas/ui/components/input";
-import { Card } from "@diner-saas/ui/components/card";
+import { getAuthenticator, verifyTurnstile, sendMagicLink } from "~/services/auth.server";
+import { Button } from "@diner-saas/ui/button";
+import { Input } from "@diner-saas/ui/input";
+import { Card } from "@diner-saas/ui/card";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
+  const env = (context as any).cloudflare?.env;
+  const authenticator = getAuthenticator(env);
+  
   // If user is already authenticated, redirect to dashboard
   const user = await authenticator.isAuthenticated(request);
   if (user) {
@@ -13,11 +16,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   }
   
   return json({
-    turnstileSiteKey: context.env.TURNSTILE_SITE_KEY || "",
+    turnstileSiteKey: env?.TURNSTILE_SITE_KEY || "",
   });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
+  const env = (context as any).cloudflare?.env;
   const formData = await request.formData();
   const intent = formData.get("intent");
 
@@ -35,15 +39,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
 
     // Verify Turnstile token
-    const { verifyTurnstile, sendMagicLink } = await import("~/services/auth.server");
-    const isTurnstileValid = await verifyTurnstile(turnstileToken, context.env);
+    const isTurnstileValid = await verifyTurnstile(turnstileToken, env);
 
     if (!isTurnstileValid) {
       return json({ error: "Security check failed. Please try again." }, { status: 400 });
     }
 
     // Send magic link
-    const result = await sendMagicLink(email, context.env);
+    const result = await sendMagicLink(email as string, env);
 
     if (!result.success) {
       return json({ error: result.error || "Failed to send magic link" }, { status: 500 });
@@ -58,8 +61,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
   // Handle magic link verification
   if (intent === "verify-magic-link") {
     try {
-      const user = await authenticator.authenticate("magic-link", request, {
-        context,
+      const authenticator = getAuthenticator(env);
+      await authenticator.authenticate("magic-link", request, {
         successRedirect: "/dashboard",
         failureRedirect: "/auth/login?error=invalid-link",
       });

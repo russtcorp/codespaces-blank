@@ -1,3 +1,4 @@
+import * as React from "react";
 import { useState } from "react";
 import {
   DndContext,
@@ -15,9 +16,9 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { SortableItem } from "./SortableItem";
-import { Button } from "@diner-saas/ui/components/button";
-import { Input } from "@diner-saas/ui/components/input";
-import { Card } from "@diner-saas/ui/components/card";
+import { Button } from "@diner-saas/ui/button";
+import { Input } from "@diner-saas/ui/input";
+import { Card } from "@diner-saas/ui/card";
 import type { FetcherWithComponents } from "@remix-run/react";
 
 interface MenuItem {
@@ -153,7 +154,7 @@ export function VisualEditor({ categories: initialCategories, cloudflareImagesUr
             <Input
               placeholder="Category name"
               value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCategoryName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleAddCategory();
                 if (e.key === "Escape") {

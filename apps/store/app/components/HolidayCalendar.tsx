@@ -1,7 +1,8 @@
+import * as React from "react";
 import { useState } from "react";
-import { Button } from "@diner-saas/ui/components/button";
-import { Input } from "@diner-saas/ui/components/input";
-import { Card } from "@diner-saas/ui/components/card";
+import { Button } from "@diner-saas/ui/button";
+import { Input } from "@diner-saas/ui/input";
+import { Card } from "@diner-saas/ui/card";
 import type { FetcherWithComponents } from "@remix-run/react";
 import { format } from "date-fns";
 
@@ -141,7 +142,7 @@ export function HolidayCalendar({ specialDates, fetcher }: HolidayCalendarProps)
                 <Input
                   type="date"
                   value={customDate}
-                  onChange={(e) => setCustomDate(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomDate(e.target.value)}
                   className="mt-1"
                 />
               </div>
@@ -167,7 +168,7 @@ export function HolidayCalendar({ specialDates, fetcher }: HolidayCalendarProps)
                   type="text"
                   placeholder="e.g., Closed for private event"
                   value={customReason}
-                  onChange={(e) => setCustomReason(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomReason(e.target.value)}
                   className="mt-1"
                 />
               </div>

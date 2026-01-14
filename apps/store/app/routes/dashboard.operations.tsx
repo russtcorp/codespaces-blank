@@ -1,15 +1,19 @@
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/cloudflare";
 import { useLoaderData, useFetcher } from "@remix-run/react";
-import { authenticator } from "~/services/auth.server";
-import { db, operatingHours, specialDates, businessSettings } from "@diner-saas/db";
+import { getAuthenticator } from "~/services/auth.server";
 import { eq, and } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/d1";
+import { operatingHours, specialDates, businessSettings } from "@diner-saas/db";
 import { HoursMatrix } from "~/components/HoursMatrix";
 import { HolidayCalendar } from "~/components/HolidayCalendar";
 import { EmergencyButton } from "~/components/EmergencyButton";
-import { Card } from "@diner-saas/ui/components/card";
+import { Card } from "@diner-saas/ui/card";
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  const env = (context as any).cloudflare?.env;
+  const authenticator = getAuthenticator(env);
   const user = await authenticator.isAuthenticated(request);
+  const db = drizzle(env.DB);
   
   if (!user) {
     throw new Response("Unauthorized", { status: 401 });
@@ -41,7 +45,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({ hours, specialDates: special, settings, user });
 }
 
-export async function action({ request }: ActionFunctionArgs) {
+export async function action({ request, context }: ActionFunctionArgs) {
+  const env = (context as any).cloudflare?.env;
+  const authenticator = getAuthenticator(env);
   const user = await authenticator.isAuthenticated(request);
   
   if (!user) {

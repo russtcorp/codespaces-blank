@@ -1,13 +1,16 @@
 import { type LoaderFunctionArgs } from "@remix-run/cloudflare";
 import { renderToStream } from "@react-pdf/renderer";
-import { authenticator } from "~/services/auth.server";
-import { db, businessSettings, themeConfig } from "@diner-saas/db";
+import { getAuthenticator } from "~/services/auth.server";
+import { drizzle } from "drizzle-orm/d1";
+import { businessSettings, themeConfig } from "@diner-saas/db";
 import { eq } from "drizzle-orm";
 import QRCode from "qrcode";
 import { FlyerDocument } from "~/components/FlyerDocument";
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await authenticator.isAuthenticated(request);
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  const env = (context as any).cloudflare?.env;
+  const user = await getAuthenticator(env).isAuthenticated(request);
+  const db = drizzle(env.DB);
   
   if (!user) {
     throw new Response("Unauthorized", { status: 401 });

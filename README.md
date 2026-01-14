@@ -205,6 +205,39 @@ wrangler r2 object put diner-assets/fallback/demo.html --file=./build/doomsday/d
 
 ---
 
+## Phase 4: Store Dashboard (Tenant Portal) ✅
+
+All Phase 4 requirements from the Master Plan are **PRODUCTION-READY**:
+
+### Authentication & Security
+- ✅ **Magic Link Auth** using `remix-auth` with one-time tokens stored in KV
+- ✅ **Turnstile Protection** on login form (env: TURNSTILE_SITE_KEY/SECRET)
+- ✅ **Session Management** via Workers KV-backed sessions (secure, HTTP-only)
+
+### Visual Menu Editor
+- ✅ **Tree View** reordering of categories/items (dnd-kit)
+- ✅ **Cloudflare Images DCU**: Direct Creator Upload URL endpoint wired
+- ✅ **CRUD** for categories and items with tenant isolation
+- ✅ AI tool stubs present for Phase 5 (Generate Description, Detect Allergens)
+
+### Operations Center
+- ✅ **Hours Matrix** with split-shift support and validation
+- ✅ **Holiday Calendar** with Open/Closed/Limited and custom dates
+- ✅ **Emergency Button** updates `business_settings.emergency_close_reason` and triggers cache purge
+
+### Settings & Marketing
+- ✅ **Notification Preferences** persisted to `authorized_users`
+- ✅ **Zaraz Pixel IDs** saved to `business_settings` (edge injection handled by Zaraz)
+- ✅ **QR Flyer** PDF route implemented with `@react-pdf/renderer` and QR code
+
+### Technical Notes
+- Routes: `apps/store/app/routes/dashboard.*`
+- Auth services: `apps/store/app/services/auth.server.ts` (KV-backed)
+- Session storage: `apps/store/app/services/session.server.ts` (Workers KV)
+- Cloudflare Images upload: handled in `dashboard.menu.tsx` (request-upload-url)
+
+---
+
 ## Notes
 
 - The Store app binds to the Durable Object class `DinerAgent` using the worker script name `agent-worker` per spec.

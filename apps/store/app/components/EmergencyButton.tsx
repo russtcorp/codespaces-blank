@@ -1,6 +1,7 @@
+import * as React from "react";
 import { useState } from "react";
-import { Button } from "@diner-saas/ui/components/button";
-import { Input } from "@diner-saas/ui/components/input";
+import { Button } from "@diner-saas/ui/button";
+import { Input } from "@diner-saas/ui/input";
 import type { FetcherWithComponents } from "@remix-run/react";
 
 interface EmergencyButtonProps {
@@ -92,7 +93,7 @@ export function EmergencyButton({
                   type="text"
                   placeholder="e.g., Closed due to weather"
                   value={reason}
-                  onChange={(e) => setReason(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReason(e.target.value)}
                   className="mt-1"
                 />
               </div>
@@ -103,7 +104,7 @@ export function EmergencyButton({
                 <Input
                   type="datetime-local"
                   value={reopenTime}
-                  onChange={(e) => setReopenTime(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReopenTime(e.target.value)}
                   className="mt-1"
                 />
                 <p className="mt-1 text-xs text-gray-500">
