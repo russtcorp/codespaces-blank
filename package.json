@@ -4,13 +4,10 @@
   "private": true,
   "description": "Cloudflare-native multi-tenant diner platform",
   "scripts": {
-    "dev": "turbo run dev --parallel",
+    
     "build": "turbo run build",
     "deploy": "turbo run deploy",
-    "db:local": "mkdir -p .wrangler/state/v3/d1 && sqlite3 .wrangler/state/v3/d1/local-dev.db < ./packages/db/migrations/0001_init_schema.sql && echo '✅ Local D1 database initialized'",
-    "db:seed": "node packages/db/scripts/seed.js && sqlite3 .wrangler/state/v3/d1/local-dev.db < ./packages/db/migrations/0002_seed_dev_data.sql && echo '✅ Seed data applied'",
     "db:migrate": "wrangler d1 execute diner-core --file=./packages/db/migrations/0001_init_schema.sql",
-    "db:studio": "drizzle-kit studio",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "test": "turbo run test"

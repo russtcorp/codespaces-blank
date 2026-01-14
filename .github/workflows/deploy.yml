@@ -1,0 +1,145 @@
+name: Deploy to Cloudflare
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+jobs:
+  build:
+    name: Install dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.1.0
+          run_install: true
+
+  migrate-d1:
+    name: Apply D1 schema
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply D1 migration (0001_init_schema.sql)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 execute diner-core --file=./packages/db/migrations/0001_init_schema.sql
+
+  deploy-agent:
+    name: Deploy Agent Worker (Durable Object)
+    runs-on: ubuntu-latest
+    needs: migrate-d1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy agent-worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/agent
+          command: deploy
+
+  deploy-pages:
+    name: Deploy Remix apps to Cloudflare Pages
+    runs-on: ubuntu-latest
+    needs: deploy-agent
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - name: store
+            path: apps/store
+            project: diner-store
+          - name: admin
+            path: apps/admin
+            project: diner-admin
+          - name: public
+            path: apps/public
+            project: diner-public
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.1.0
+          run_install: true
+
+      - name: Build ${{ matrix.app.name }}
+        working-directory: ${{ matrix.app.path }}
+        run: pnpm build
+
+      - name: Deploy ${{ matrix.app.name }} to Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ${{ matrix.app.path }}
+          command: pages deploy ./build/client --project-name ${{ matrix.app.project }}
+
+  deploy-jobs:
+    name: Deploy Jobs Worker
+    runs-on: ubuntu-latest
+    needs: deploy-pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy diner-jobs
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: services/jobs
+          command: deploy
+
+  deploy-workflows:
+    name: Deploy Workflows Worker
+    runs-on: ubuntu-latest
+    needs: deploy-agent
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy diner-workflows
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: services/workflows
+          command: deploy

@@ -3,16 +3,11 @@ type = "service"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
-[vars]
-TWILIO_ACCOUNT_SID = "changeme"
-TWILIO_AUTH_TOKEN = "changeme"
-TWILIO_PHONE_NUMBER = "+15550000000"
-
 # Bindings
 [[d1_databases]]
 binding = "DB"
 database_name = "diner-core"
-database_id = "local-db-id"
+database_id = "REPLACE_WITH_PROD_DB_ID"
 
 [[r2_buckets]]
 binding = "ASSETS"
@@ -20,7 +15,7 @@ bucket_name = "diner-assets"
 
 [[kv_namespaces]]
 binding = "KV"
-id = "local-kv-id"
+id = "REPLACE_WITH_PROD_KV_ID"
 
 # Queues (producers)
 [[queues.producers]]

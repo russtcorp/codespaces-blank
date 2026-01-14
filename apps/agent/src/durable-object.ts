@@ -179,12 +179,10 @@ export class DinerAgent implements DurableObject {
 
     // 86 item
     const outMatch = lower.match(/(?:86|out of)\s+(.+)/);
-    if (outMatch) {
-      const term = outMatch[1].trim();
-      if (term) {
-        await this.softDisableItem(message.to, term);
-        return `Got it. Marked ${term} as unavailable.`;
-      }
+    const term = (outMatch?.[1] ?? "").trim();
+    if (term) {
+      await this.softDisableItem(message.to, term);
+      return `Got it. Marked ${term} as unavailable.`;
     }
 
     // Open late until HH:MM
@@ -274,7 +272,7 @@ export interface InboundMessage {
 export interface Env {
   DB: D1Database;
   KV: KVNamespace;
-  R2_ASSETS: R2Bucket;
+  ASSETS: R2Bucket;
   AI: any;
   AI_MODEL_WHISPER: string;
   AI_MODEL_EMBEDDING: string;

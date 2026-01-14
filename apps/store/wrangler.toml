@@ -6,7 +6,7 @@ pages_build_output_dir = "./build/client"
 [[d1_databases]]
 binding = "DB"
 database_name = "diner-core"
-database_id = "local-db-id"
+database_id = "REPLACE_WITH_PROD_DB_ID"
 
 [[r2_buckets]]
 binding = "ASSETS"
@@ -14,13 +14,13 @@ bucket_name = "diner-assets"
 
 [[kv_namespaces]]
 binding = "KV"
-id = "local-kv-id"
+id = "REPLACE_WITH_PROD_KV_ID"
 
 # Durable Object binding (for Agent)
-[[durable_objects.bindings]]
-name = "AGENT_DO"
+[[durable_objects]]
+binding = "AGENT_DO"
 class_name = "DinerAgent"
-script_name = "diner-agent"
+script_name = "agent-worker"
 
 [observability]
 enabled = true

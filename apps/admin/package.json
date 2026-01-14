@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "remix vite:dev --port 3002",
     "build": "remix vite:build",
     "deploy": "wrangler pages deploy ./build/client",
     "lint": "eslint app"

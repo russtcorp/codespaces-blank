@@ -1,23 +1,22 @@
-name = "diner-agent"
+name = "agent-worker"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
 [vars]
 AI_MODEL_WHISPER = "@cf/openai/whisper"
 AI_MODEL_EMBEDDING = "@cf/baai/bge-base-en-v1.5"
-TWILIO_AUTH_TOKEN = "changeme"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "diner-core"
-database_id = "local-db-id"
+database_id = "REPLACE_WITH_PROD_DB_ID"
 
 [[kv_namespaces]]
 binding = "KV"
-id = "local-kv-id"
+id = "REPLACE_WITH_PROD_KV_ID"
 
 [[r2_buckets]]
-binding = "R2_ASSETS"
+binding = "ASSETS"
 bucket_name = "diner-assets"
 
 [[durable_objects]]

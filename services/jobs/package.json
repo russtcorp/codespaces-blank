@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --port 8788",
     "deploy": "wrangler deploy",
     "build": "tsc --noEmit",
     "lint": "eslint src"

@@ -119,13 +119,13 @@ export async function sendMagicLink(
       expirationTtl: 900, // 15 minutes
     });
 
-    // TODO: Send email via Cloudflare Queues -> MailChannels
-    // For now, we'll log the magic link (dev mode)
-    const magicLink = `${env.SITE_URL || 'http://localhost:3001'}/auth/verify?token=${token}&email=${encodeURIComponent(email)}`;
-    
-    console.log(`[DEV] Magic Link for ${email}: ${magicLink}`);
-    
-    // In production, push to email queue
+    // Build magic link using production SITE_URL (must be set via secrets)
+    if (!env.SITE_URL) {
+      throw new Error("SITE_URL is not configured");
+    }
+    const magicLink = `${env.SITE_URL}/auth/verify?token=${token}&email=${encodeURIComponent(email)}`;
+
+    // In production, push to email queue if available
     if (env.EMAIL_QUEUE) {
       await env.EMAIL_QUEUE.send({
         type: 'magic_link',

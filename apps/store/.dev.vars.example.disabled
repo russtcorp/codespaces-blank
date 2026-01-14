@@ -1,0 +1,34 @@
+# Cloudflare Infrastructure
+CLOUDFLARE_ACCOUNT_ID=your_account_id
+CLOUDFLARE_API_TOKEN=your_api_token
+CLOUDFLARE_IMAGES_URL=https://imagedelivery.net/your_account_hash
+
+# Authentication
+SESSION_SECRET=change-this-to-a-long-random-string-in-production
+MAGIC_LINK_SECRET=another-long-random-string-for-token-encryption
+
+# Cloudflare Turnstile (Bot Protection)
+TURNSTILE_SITE_KEY=your_turnstile_site_key
+TURNSTILE_SECRET_KEY=your_turnstile_secret_key
+
+# DISABLED: local dev example
+# Site Configuration
+# SITE_URL=http://localhost:3001
+
+# Cache Purge (optional for local dev)
+CACHE_PURGE_URL=https://api.cloudflare.com/client/v4/zones/your_zone_id/purge_cache
+
+# Email Queue (optional - will be implemented in Phase 5)
+# EMAIL_QUEUE=
+
+# Stripe (Billing - will be implemented in Phase 6)
+# STRIPE_SECRET_KEY=
+# STRIPE_WEBHOOK_SECRET=
+
+# Twilio (SMS/Voice - will be implemented in Phase 5)
+# TWILIO_ACCOUNT_SID=
+# TWILIO_AUTH_TOKEN=
+# TWILIO_PHONE_NUMBER=
+
+# AI (Optional fallback)
+# OPENAI_API_KEY=

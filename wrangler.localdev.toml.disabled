@@ -1,0 +1,19 @@
+## NOTE: This file has been disabled.
+## It contained local-only Wrangler configuration for development and is not used in production.
+## If you need local development, copy this file to wrangler.toml and adjust as needed.
+name = "diner-saas-local"
+main = "packages/db/src/index.ts"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "diner-core"
+database_id = "local-dev"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "local-kv-dev"
+
+[[r2_buckets]]
+binding = "R2_ASSETS"
+bucket_name = "diner-assets-local"

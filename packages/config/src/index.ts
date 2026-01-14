@@ -282,14 +282,3 @@ export const FEATURE_FLAGS = {
   ONLINE_ORDERING: false,
 } as const;
 
-// ============================================================================
-// SERVER PORTS (Local Development)
-// ============================================================================
-export const PORTS = {
-  public: 3000,
-  store: 3001,
-  admin: 3002,
-  agent: 8787,
-  jobs: 8788,
-} as const;
-
