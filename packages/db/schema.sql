@@ -105,3 +105,27 @@ CREATE TABLE IF NOT EXISTS menu_items (
   FOREIGN KEY (tenant_id) REFERENCES tenants(id),
   FOREIGN KEY (category_id) REFERENCES categories(id)
 );
+
+-- SUBSCRIPTION EVENTS (for Stripe webhook tracking)
+CREATE TABLE IF NOT EXISTS subscription_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  stripe_event_id TEXT UNIQUE,
+  previous_status TEXT,
+  new_status TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+);
+
+-- A2P 10DLC PROFILES (for Twilio SMS compliance)
+CREATE TABLE IF NOT EXISTS a2p_profiles (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id TEXT UNIQUE NOT NULL,
+  business_profile_sid TEXT,
+  campaign_sid TEXT,
+  status TEXT DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP,
+  FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+);

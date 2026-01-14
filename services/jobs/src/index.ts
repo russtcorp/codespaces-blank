@@ -2,10 +2,12 @@
  * Background Jobs Worker
  *
  * This worker handles asynchronous tasks:
- * - Cron-triggered jobs (daily reports, sync operations)
+ * - Cron-triggered jobs (daily reports, sync operations, usage alerts)
  * - Queue consumption (SMS sending, social media sync)
  * - Email notifications
  */
+
+import { handleUsageAlertsCron } from "./usage-alerts";
 
 export interface Env {
   DB: D1Database;
@@ -21,11 +23,22 @@ export default {
     return new Response("Diner SaaS Jobs Worker - Running", { status: 200 });
   },
 
-  async scheduled(): Promise<void> {
-    // This will be implemented in Phase 5 and beyond
-    // eslint-disable-next-line no-console
+  async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
     console.log("Cron job triggered at", new Date().toISOString());
+
+    try {
+      const result = await handleUsageAlertsCron(env.DB, env.KV);
+      console.log("Usage alerts cron completed:", result);
+    } catch (error) {
+      console.error("Usage alerts cron failed:", error);
+    }
+
+    // TODO: Add more scheduled jobs
+    // - ROI reports (weekly)
+    // - Social media sync (daily)
+    // - Google Business sync (daily)
   },
+
   async queue(batch: MessageBatch, env: Env) {
     for (const msg of batch.messages) {
       const payload = msg.body as OutboundMessage;
@@ -67,3 +80,4 @@ async function sendSms(env: Env, to: string, body: string) {
     console.error("Twilio send error", err);
   }
 }
+
