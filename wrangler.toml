@@ -1,0 +1,24 @@
+name = "diner-saas-local"
+main = "packages/db/src/index.ts"
+compatibility_date = "2024-01-01"
+
+# IMPORTANT: Local D1 Database Configuration
+# For LOCAL DEVELOPMENT: Uses sqlite3 directly (see npm run db:local, db:seed)
+# For PRODUCTION: Uses wrangler commands (see npm run db:migrate)
+# This workaround is necessary due to workerd binary compatibility in some environments
+
+# Local D1 Database for development
+[[d1_databases]]
+binding = "DB"
+database_name = "diner-core"
+database_id = "local-dev"
+
+# KV for testing
+[[kv_namespaces]]
+binding = "KV"
+id = "local-kv-dev"
+
+# R2 for testing
+[[r2_buckets]]
+binding = "R2_ASSETS"
+bucket_name = "diner-assets-local"

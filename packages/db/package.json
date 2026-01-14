@@ -9,7 +9,11 @@
   },
   "scripts": {
     "generate": "drizzle-kit generate:sqlite",
-    "studio": "drizzle-kit studio"
+    "studio": "drizzle-kit studio",
+    "migrate:local": "wrangler d1 execute diner-core --local --file=./migrations/0001_init_schema.sql",
+    "migrate:prod": "wrangler d1 execute diner-core --file=./migrations/0001_init_schema.sql",
+    "seed": "node scripts/seed.js",
+    "test": "vitest run"
   },
   "dependencies": {
     "drizzle-orm": "^0.30.0"
