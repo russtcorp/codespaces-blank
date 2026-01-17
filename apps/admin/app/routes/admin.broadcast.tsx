@@ -9,7 +9,7 @@ import {
   publishBroadcast,
   getActiveBroadcasts,
   clearAllBroadcasts,
-} from "../../packages/db/src/broadcast";
+} from "@diner-saas/db";
 import { useState } from "react";
 
 interface BroadcastMessage {

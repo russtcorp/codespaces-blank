@@ -28,3 +28,8 @@ binding = "AI"
 routes = [
   { pattern = "admin.diner-saas.com", zone_name = "diner-saas.com" }
 ]
+
+# Internal service binding to Workflows
+[[services]]
+binding = "WORKFLOWS_SERVICE"
+service = "diner-workflows"

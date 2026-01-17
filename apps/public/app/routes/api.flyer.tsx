@@ -19,11 +19,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const env = (request as any).env;
 
-  // Fetch tenant data
+  // Fetch tenant data (including theme logo)
   const tenant = await env.DB.prepare(
-    `SELECT t.business_name, t.slug, bs.address, bs.phone_public, bs.wifi_ssid, bs.wifi_password
+    `SELECT t.business_name, t.slug, bs.address, bs.phone_public, bs.wifi_ssid, bs.wifi_password, tc.logo_image_cf_id
      FROM tenants t
      LEFT JOIN business_settings bs ON t.id = bs.tenant_id
+     LEFT JOIN theme_config tc ON t.id = tc.tenant_id
      WHERE t.id = ?`
   )
     .bind(tenantId)
@@ -52,11 +53,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
   }
 
+  // Optional logo from Cloudflare Images
+  const imagesAccountHash = env.CLOUDFLARE_IMAGES_ACCOUNT_HASH;
+  const logoUrl = tenant.logo_image_cf_id && imagesAccountHash
+    ? `https://imagedelivery.net/${imagesAccountHash}/${tenant.logo_image_cf_id}/public`
+    : null;
+
   // Create PDF document
   const FlyerDocument = (
     <Document>
       <Page size="LETTER" style={styles.page}>
         <View style={styles.header}>
+          {logoUrl && <PDFImage src={logoUrl} style={styles.logo} />}
           <Text style={styles.businessName}>{tenant.business_name}</Text>
           {tenant.address && <Text style={styles.address}>{tenant.address}</Text>}
           {tenant.phone_public && <Text style={styles.phone}>{tenant.phone_public}</Text>}
@@ -179,5 +187,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: "center",
     color: "#888",
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: 12,
+    objectFit: "contain",
   },
 });

@@ -18,3 +18,10 @@ id = "REPLACE_WITH_PROD_KV_ID"
 
 [observability]
 enabled = true
+
+[vars]
+CLOUDFLARE_IMAGES_ACCOUNT_HASH = "REPLACE_WITH_CF_IMAGES_HASH"
+
+# WASM module for Resvg (Satori PNG rendering)
+[wasm_modules]
+resvg = "./node_modules/@resvg/resvg-wasm/index_bg.wasm"

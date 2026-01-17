@@ -25,3 +25,7 @@ class_name = "MagicStartWorkflow"
 
 [env.production]
 # Production overrides
+
+[vars]
+# Optional: Zone ID for Cloudflare for SaaS custom hostnames
+CLOUDFLARE_ZONE_ID = "REPLACE_WITH_ZONE_ID"

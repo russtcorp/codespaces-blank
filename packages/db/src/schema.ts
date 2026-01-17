@@ -58,6 +58,9 @@ export const businessSettings = sqliteTable("business_settings", {
   marketingPixels: text("marketing_pixels"),
   emergencyCloseReason: text("emergency_close_reason"),
   emergencyReopenTime: text("emergency_reopen_time"),
+  // Phase 5: QR Flyer requires WiFi credentials
+  wifiSsid: text("wifi_ssid"),
+  wifiPassword: text("wifi_password"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
 });

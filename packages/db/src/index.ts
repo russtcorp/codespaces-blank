@@ -48,3 +48,7 @@ export {
 } from "./emergency-button";
 export type { EmergencyClosePayload, EmergencyStatus } from "./emergency-button";
 
+// Broadcast system (KV)
+export { createBroadcastMessage, publishBroadcast, getActiveBroadcasts, clearAllBroadcasts } from "./broadcast";
+export type { BroadcastMessage as Broadcast } from "./broadcast";
+

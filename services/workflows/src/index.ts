@@ -13,7 +13,7 @@ import { scrapeWebsite } from "@diner-saas/scraper";
  */
 export class MagicStartWorkflow extends WorkflowEntrypoint<Env, OnboardingParams> {
   async run(event: WorkflowEvent<OnboardingParams>, step: WorkflowStep) {
-    const { businessName, address, websiteUrl, scrapeGoogle, scrapeWayback, scrapeInstagram } = event.payload;
+    const { businessName, address, websiteUrl, scrapeGoogle, scrapeWayback, scrapeInstagram, customDomain } = event.payload;
 
     // Step 1: Ingest
     const ingestData = await step.do("ingest", async () => {
@@ -26,6 +26,7 @@ export class MagicStartWorkflow extends WorkflowEntrypoint<Env, OnboardingParams
           wayback: scrapeWayback || true,
           instagram: scrapeInstagram || false,
         },
+        customDomain: customDomain || null,
         timestamp: new Date().toISOString(),
       };
     });
@@ -134,7 +135,7 @@ export class MagicStartWorkflow extends WorkflowEntrypoint<Env, OnboardingParams
             );
 
             if (uploadResponse.ok) {
-              const result = await uploadResponse.json();
+              const result: any = await uploadResponse.json();
               images.push(result.result.id);
             }
           } catch (error) {
@@ -145,6 +146,34 @@ export class MagicStartWorkflow extends WorkflowEntrypoint<Env, OnboardingParams
 
       return images;
     });
+
+    // Store preview and await approval (Visual Diff in Admin)
+    const previewId = crypto.randomUUID();
+    await this.env.ASSETS.put(`workflows/preview/${previewId}.json`, JSON.stringify({
+      ingest: ingestData,
+      scraped: scrapedData,
+      parsed: parsedMenu,
+      hydratedImages,
+      createdAt: new Date().toISOString(),
+    }), { httpMetadata: { contentType: "application/json" } });
+
+    return {
+      success: true,
+      preview_id: previewId,
+      awaiting_approval: true,
+      preview: {
+        id: previewId,
+        screenshot: scrapedData.website?.screenshot || null,
+        items: parsedMenu.items || [],
+        imageCount: hydratedImages.length,
+      },
+      steps: {
+        ingest: ingestData,
+        scrape: { website: scrapedData.website ? { hasScreenshot: !!scrapedData.website.screenshot } : null },
+        parse: { itemCount: (parsedMenu.items || []).length },
+        hydrate: { imageCount: hydratedImages.length },
+      },
+    };
 
     // Step 5: Provision
     const provisionResult = await step.do("provision", async () => {
@@ -226,7 +255,7 @@ export class MagicStartWorkflow extends WorkflowEntrypoint<Env, OnboardingParams
 
     return {
       success: true,
-      workflow_id: event.id,
+      workflow_id: "",
       result: provisionResult,
       steps: {
         ingest: ingestData,
@@ -302,6 +331,85 @@ Return only valid JSON array, no other text.`;
   return [];
 }
 
+async function provisionFromPreview(env: Env, data: any) {
+  const businessName: string = data.ingest?.businessName || "New Diner";
+  const address: string = data.ingest?.address || "";
+  const items: any[] = data.parsed?.items || [];
+  const hydratedImages: string[] = data.hydratedImages || [];
+
+  const tenantId = crypto.randomUUID();
+  const slug = businessName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  // Create tenant
+  await env.DB.prepare(
+    `INSERT INTO tenants (id, slug, business_name, subscription_status, status, created_at)
+     VALUES (?, ?, ?, 'trial', 'active', ?)`
+  ).bind(tenantId, slug, businessName, new Date().toISOString()).run();
+
+  // Create business settings
+  await env.DB.prepare(
+    `INSERT INTO business_settings (tenant_id, address, phone_public, timezone, is_hiring)
+     VALUES (?, ?, '', 'America/New_York', 0)`
+  ).bind(tenantId, address).run();
+
+  // Create theme config
+  const heroImageId = hydratedImages[0] || null;
+  await env.DB.prepare(
+    `INSERT INTO theme_config (tenant_id, primary_color, secondary_color, font_heading, font_body, layout_style, hero_image_cf_id)
+     VALUES (?, '#dc2626', '#f3f4f6', 'sans-serif', 'sans-serif', 'grid', ?)`
+  ).bind(tenantId, heroImageId).run();
+
+  // Create categories and menu items
+  const categoryMap = new Map<string, number>();
+
+  for (const item of items) {
+    const category = item.category || 'Menu';
+    if (!categoryMap.has(category)) {
+      const result = await env.DB.prepare(
+        `INSERT INTO categories (tenant_id, name, sort_order, is_visible)
+         VALUES (?, ?, ?, 1)
+         RETURNING id`
+      ).bind(tenantId, category, categoryMap.size).first<{ id: number }>();
+
+      if (result) categoryMap.set(category, result.id);
+    }
+
+    const categoryId = categoryMap.get(category);
+    if (!categoryId) continue;
+
+    await env.DB.prepare(
+      `INSERT INTO menu_items (tenant_id, category_id, name, description, price, image_cf_id, is_available, embedding_version)
+       VALUES (?, ?, ?, ?, ?, NULL, 1, 1)`
+    ).bind(tenantId, categoryId, item.name || '', item.description || '', item.price || 0).run();
+  }
+
+  // Optional: trigger Cloudflare for SaaS custom hostname
+  if (data.ingest?.customDomain && env.CLOUDFLARE_ZONE_ID && env.CLOUDFLARE_API_TOKEN) {
+    try {
+      await fetch(`https://api.cloudflare.com/client/v4/zones/${env.CLOUDFLARE_ZONE_ID}/custom_hostnames`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ hostname: data.ingest.customDomain }),
+      });
+    } catch (e) {
+      console.error("Cloudflare for SaaS custom hostname failed:", e);
+    }
+  }
+
+  return {
+    tenantId,
+    slug,
+    url: `https://${slug}.diner-saas.com`,
+    itemCount: items.length,
+  };
+}
+
 // HTTP Handler to trigger workflows
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -342,7 +450,7 @@ export default {
       const workflowId = url.pathname.split("/")[2];
       
       try {
-        const instance = await env.ONBOARDING_WORKFLOW.get(workflowId);
+        const instance = await env.ONBOARDING_WORKFLOW.get(workflowId!);
         const status = await instance.status();
 
         return Response.json({
@@ -358,6 +466,42 @@ export default {
       }
     }
 
+    // Get preview payload for visual diff (screenshot + parsed menu)
+    if (url.pathname.startsWith("/preview/")) {
+      const previewId = url.pathname.split("/")[2];
+      const obj = await env.ASSETS.get(`workflows/preview/${previewId}.json`);
+      if (!obj) {
+        return Response.json({ error: "Preview not found" }, { status: 404 });
+      }
+      const data: any = await obj.json();
+      // Return only the necessary fields for UI
+      return Response.json({
+        preview_id: previewId,
+        screenshot: data.scraped?.website?.screenshot || null,
+        items: data.parsed?.items || [],
+        images: data.hydratedImages || [],
+      });
+    }
+
+    // Approve and provision the tenant from stored preview
+    if (url.pathname.startsWith("/approve/") && request.method === "POST") {
+      const previewId = url.pathname.split("/")[2];
+      const obj = await env.ASSETS.get(`workflows/preview/${previewId}.json`);
+      if (!obj) {
+        return Response.json({ error: "Preview not found" }, { status: 404 });
+      }
+      const data: any = await obj.json();
+
+      try {
+        const result = await provisionFromPreview(env, data);
+        // Optionally delete preview after success
+        await env.ASSETS.delete(`workflows/preview/${previewId}.json`).catch(() => {});
+        return Response.json({ success: true, result });
+      } catch (error) {
+        return Response.json({ error: String(error) }, { status: 500 });
+      }
+    }
+
     return Response.json({ error: "Not found" }, { status: 404 });
   },
 };
@@ -369,6 +513,7 @@ interface OnboardingParams {
   scrapeGoogle?: boolean;
   scrapeWayback?: boolean;
   scrapeInstagram?: boolean;
+  customDomain?: string;
 }
 
 interface Env {
@@ -379,4 +524,5 @@ interface Env {
   ONBOARDING_WORKFLOW: Workflow;
   CLOUDFLARE_ACCOUNT_ID: string;
   CLOUDFLARE_API_TOKEN: string;
+  CLOUDFLARE_ZONE_ID?: string;
 }

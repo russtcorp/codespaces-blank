@@ -1,11 +1,11 @@
 import { json, type ActionFunctionArgs } from "@remix-run/cloudflare";
-import { useActionData, Form, useNavigation } from "@remix-run/remix";
+import { useActionData, Form, useNavigation } from "@remix-run/react";
 import { useState } from "react";
 
-export async function action({ request }: ActionFunctionArgs) {
+export async function action({ request, context }: ActionFunctionArgs) {
   const formData = await request.formData();
   const intent = formData.get("intent");
-  const env = (request as any).env;
+  const env = (context as any).cloudflare?.env || (request as any).env;
 
   try {
     switch (intent) {
@@ -13,6 +13,7 @@ export async function action({ request }: ActionFunctionArgs) {
         const businessName = formData.get("businessName") as string;
         const address = formData.get("address") as string;
         const websiteUrl = formData.get("websiteUrl") as string;
+        const customDomain = formData.get("customDomain") as string;
         const scrapeGoogle = formData.get("scrapeGoogle") === "on";
         const scrapeWayback = formData.get("scrapeWayback") === "on";
         const scrapeInstagram = formData.get("scrapeInstagram") === "on";
@@ -21,8 +22,8 @@ export async function action({ request }: ActionFunctionArgs) {
           return json({ error: "Business name and address are required" }, { status: 400 });
         }
 
-        // Trigger the Cloudflare Workflow
-        const workflowResponse = await fetch(`${env.WORKFLOW_SERVICE_URL}/start`, {
+        // Trigger the Cloudflare Workflow via internal service binding
+        const workflowResponse = await env.WORKFLOWS_SERVICE.fetch("https://workflows.internal/start", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -32,6 +33,7 @@ export async function action({ request }: ActionFunctionArgs) {
             scrapeGoogle,
             scrapeWayback,
             scrapeInstagram,
+            customDomain: customDomain || undefined,
           }),
         });
 
@@ -56,7 +58,7 @@ export async function action({ request }: ActionFunctionArgs) {
         }
 
         // Check workflow status
-        const statusResponse = await fetch(`${env.WORKFLOW_SERVICE_URL}/status/${workflowId}`);
+        const statusResponse = await env.WORKFLOWS_SERVICE.fetch(`https://workflows.internal/status/${workflowId}`);
         const statusResult: any = await statusResponse.json();
 
         if (!statusResponse.ok) {
@@ -69,6 +71,19 @@ export async function action({ request }: ActionFunctionArgs) {
           output: statusResult.output,
           step: "complete",
         });
+      }
+
+      case "approve": {
+        const previewId = formData.get("preview_id") as string;
+        if (!previewId) {
+          return json({ error: "preview_id is required" }, { status: 400 });
+        }
+        const approveResponse = await env.WORKFLOWS_SERVICE.fetch(`https://workflows.internal/approve/${previewId}`, { method: "POST" });
+        const approveResult: any = await approveResponse.json();
+        if (!approveResponse.ok) {
+          return json({ error: approveResult.error || "Approve failed" }, { status: 500 });
+        }
+        return json({ success: true, approved: true, result: approveResult.result, step: "approved" });
       }
 
       default:
@@ -138,6 +153,18 @@ export default function AdminOnboarding() {
                 name="websiteUrl"
                 type="url"
                 placeholder="https://joesdiner.com"
+                className="mt-1 flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Custom Domain (optional)
+              </label>
+              <input
+                name="customDomain"
+                type="text"
+                placeholder="joesdiner.com"
                 className="mt-1 flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
@@ -217,11 +244,50 @@ export default function AdminOnboarding() {
             </Form>
 
             {actionData && "output" in actionData && (
-              <div className="mt-6 text-left">
-                <h3 className="mb-2 font-semibold">Workflow Result:</h3>
-                <pre className="rounded bg-gray-50 p-4 text-xs overflow-auto">
-                  {JSON.stringify(actionData.output, null, 2)}
-                </pre>
+              <div className="mt-6 text-left space-y-4">
+                <h3 className="mb-2 font-semibold">Workflow Result</h3>
+
+                {actionData.output?.preview && (
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <div>
+                      <h4 className="mb-2 text-sm font-medium text-gray-700">Source Site Screenshot</h4>
+                      {actionData.output.preview.screenshot ? (
+                        <img
+                          src={`data:image/png;base64,${actionData.output.preview.screenshot}`}
+                          alt="Source screenshot"
+                          className="w-full rounded border"
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-500">No screenshot available.</p>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="mb-2 text-sm font-medium text-gray-700">Parsed Menu Items ({actionData.output.preview.items?.length || 0})</h4>
+                      <div className="rounded border bg-gray-50 p-3 max-h-96 overflow-auto text-xs">
+                        <ul className="list-disc pl-5 space-y-1">
+                          {(actionData.output.preview.items || []).slice(0, 50).map((it: any, idx: number) => (
+                            <li key={idx}><strong>{it.name}</strong>{it.price ? ` - $${Number(it.price).toFixed(2)}` : ""} <span className="text-gray-500">[{it.category || "Menu"}]</span></li>
+                          ))}
+                        </ul>
+                        {(actionData.output.preview.items || []).length > 50 && (
+                          <div className="mt-2 text-gray-500">…and more</div>
+                        )}
+                      </div>
+                      <Form method="post" className="mt-4">
+                        <input type="hidden" name="intent" value="approve" />
+                        <input type="hidden" name="preview_id" value={actionData.output.preview.id} />
+                        <button type="submit" className="inline-flex items-center justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2">
+                          Approve & Provision
+                        </button>
+                      </Form>
+                    </div>
+                  </div>
+                )}
+
+                <details className="rounded border bg-gray-50 p-4">
+                  <summary className="cursor-pointer text-sm font-medium">Raw Output</summary>
+                  <pre className="mt-2 whitespace-pre-wrap text-xs">{JSON.stringify(actionData.output, null, 2)}</pre>
+                </details>
               </div>
             )}
           </div>
