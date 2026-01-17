@@ -6,7 +6,7 @@ pages_build_output_dir = "./build/client"
 [[d1_databases]]
 binding = "DB"
 database_name = "diner-core"
-database_id = "REPLACE_WITH_PROD_DB_ID"
+database_id = "67be05e6-6d3d-45f4-bba6-b2b7450c919f"
 
 [[r2_buckets]]
 binding = "ASSETS"
@@ -14,7 +14,7 @@ bucket_name = "diner-assets"
 
 [[kv_namespaces]]
 binding = "KV"
-id = "REPLACE_WITH_PROD_KV_ID"
+id = "6fdb42f00f674f9b8fbb2dab755f3279"
 
 [observability]
 enabled = true
