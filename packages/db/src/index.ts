@@ -1,6 +1,12 @@
 import * as schema from "./schema";
+import { drizzle } from "drizzle-orm/d1";
 
 export { schema };
+
+// Database factory
+export function createDb(d1Binding: any) {
+  return drizzle(d1Binding);
+}
 
 // Re-export table schema for app consumption
 export {
@@ -13,7 +19,6 @@ export {
   menuItems,
   categories,
 } from "./schema";
-export type { Database } from "./schema";
 
 // Safe Query middleware (tenant isolation)
 export { SafeDatabase, createSafeDb, createUserContext, createAdminContext, validateTenantId } from "./safe-query";

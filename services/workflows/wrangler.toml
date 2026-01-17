@@ -12,6 +12,16 @@ database_id = "67be05e6-6d3d-45f4-bba6-b2b7450c919f"
 binding = "ASSETS"
 bucket_name = "diner-assets"
 
+[[kv_namespaces]]
+binding = "KV"
+id = "6fdb42f00f674f9b8fbb2dab755f3279"
+
+# Durable Object binding (for Agent coordination)
+[[durable_objects]]
+binding = "AGENT_DO"
+class_name = "DinerAgent"
+script_name = "agent-worker"
+
 [ai]
 binding = "AI"
 

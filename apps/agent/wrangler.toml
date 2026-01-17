@@ -2,6 +2,11 @@ name = "agent-worker"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
+# Export Durable Object class for other workers to bind to
+[[migrations]]
+tag = "v1"
+new_classes = ["DinerAgent"]
+
 [vars]
 AI_MODEL_WHISPER = "@cf/openai/whisper"
 AI_MODEL_EMBEDDING = "@cf/baai/bge-base-en-v1.5"
@@ -19,13 +24,8 @@ id = "6fdb42f00f674f9b8fbb2dab755f3279"
 binding = "ASSETS"
 bucket_name = "diner-assets"
 
-[[durable_objects]]
-binding = "AGENT_DO"
-class_name = "DinerAgent"
-
 [[queues.consumers]]
 queue = "sms-inbound"
-binding = "SMS_INBOUND"
 
 [[queues.producers]]
 queue = "sms-inbound"
@@ -37,6 +37,7 @@ binding = "SMS_OUTBOUND"
 
 [ai]
 binding = "AI"
-[vectorize]
+
+[[vectorize]]
 binding = "VECTORIZE"
 index_name = "diner-menu-index"

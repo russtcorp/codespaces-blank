@@ -1,7 +1,9 @@
 import { verifyTwilioSignature, parseFormBody } from "./utils/twilio";
-import { InboundMessage } from "./durable-object";
+import { InboundMessage, DinerAgent } from "./durable-object";
 import { handleVoice as handleVoiceAI } from "./handlers/voice";
 import { handleVision } from "./handlers/vision";
+
+export { DinerAgent };
 
 export interface Env {
   AGENT_DO: DurableObjectNamespace;

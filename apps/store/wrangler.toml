@@ -22,5 +22,19 @@ binding = "AGENT_DO"
 class_name = "DinerAgent"
 script_name = "agent-worker"
 
+# Workers AI (for embeddings and image generation)
+[ai]
+binding = "AI"
+
+# Vectorize (for semantic menu search)
+[vectorize]
+binding = "VECTORIZE"
+index_name = "diner-menu-index"
+
+# Internal service binding to Workflows
+[[services]]
+binding = "WORKFLOWS_SERVICE"
+service = "diner-workflows"
+
 [observability]
 enabled = true
