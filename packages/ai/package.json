@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@cloudflare/ai": "^1.0.59",
-    "ai": "^3.0.0"
+    "ai": "^5.0.52"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241218.0",
