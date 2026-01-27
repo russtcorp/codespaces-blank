@@ -9,7 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "hono": "^4.0.0",
+    "hono": "^4.11.7",
     "@diner-saas/db": "workspace:*"
   },
   "devDependencies": {

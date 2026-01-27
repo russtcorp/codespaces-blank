@@ -149,8 +149,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/db
       hono:
-        specifier: ^4.0.0
-        version: 4.11.4
+        specifier: ^4.11.7
+        version: 4.11.7
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^4.20241218.0
@@ -3661,8 +3661,8 @@ packages:
     resolution: {integrity: sha512-Ox1pJVrDCyGHMG9CFg1tmrRUMRPRsAWYc/PinY0XzJU4K7y7vjNoLKIQ7BR5UJMCxNN8EM1MNDmHWA/B3aZUuw==}
     engines: {node: '>=6'}
 
-  hono@4.11.4:
-    resolution: {integrity: sha512-U7tt8JsyrxSRKspfhtLET79pU8K+tInj5QZXs1jSugO1Vq5dFj3kmZsRldo29mTBfcjDRVRXrEZ6LS63Cog9ZA==}
+  hono@4.11.7:
+    resolution: {integrity: sha512-l7qMiNee7t82bH3SeyUCt9UF15EVmaBvsppY2zQtrbIhl/yzBTny+YUxsVjSjQ6gaqaeVtZmGocom8TzBlA4Yw==}
     engines: {node: '>=16.9.0'}
 
   hosted-git-info@2.8.9:
@@ -6936,13 +6936,13 @@ snapshots:
 
   '@fastify/busboy@2.1.1': {}
 
-  '@hono/node-server@1.19.9(hono@4.11.4)':
+  '@hono/node-server@1.19.9(hono@4.11.7)':
     dependencies:
-      hono: 4.11.4
+      hono: 4.11.7
 
-  '@hono/zod-validator@0.2.2(hono@4.11.4)(zod@3.25.76)':
+  '@hono/zod-validator@0.2.2(hono@4.11.7)(zod@3.25.76)':
     dependencies:
-      hono: 4.11.4
+      hono: 4.11.7
       zod: 3.25.76
 
   '@humanwhocodes/config-array@0.13.0':
@@ -8714,8 +8714,8 @@ snapshots:
   drizzle-kit@0.20.18:
     dependencies:
       '@esbuild-kit/esm-loader': 2.6.5
-      '@hono/node-server': 1.19.9(hono@4.11.4)
-      '@hono/zod-validator': 0.2.2(hono@4.11.4)(zod@3.25.76)
+      '@hono/node-server': 1.19.9(hono@4.11.7)
+      '@hono/zod-validator': 0.2.2(hono@4.11.7)(zod@3.25.76)
       camelcase: 7.0.1
       chalk: 5.6.2
       commander: 9.5.0
@@ -8724,7 +8724,7 @@ snapshots:
       esbuild-register: 3.6.0(esbuild@0.19.12)
       glob: 8.1.0
       hanji: 0.0.5
-      hono: 4.11.4
+      hono: 4.11.7
       json-diff: 0.9.0
       minimatch: 7.4.6
       semver: 7.7.3
@@ -9644,7 +9644,7 @@ snapshots:
 
   hex-rgb@4.3.0: {}
 
-  hono@4.11.4: {}
+  hono@4.11.7: {}
 
   hosted-git-info@2.8.9: {}
 
