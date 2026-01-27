@@ -61,9 +61,10 @@ export class DinerAgent implements DurableObject {
   }
 
   private async handleInbound(message: InboundMessage): Promise<void> {
-    // Prevent race conditions during state updates
+    // Critical section: Load state, append message, truncate, and save
+    // Only block concurrency for state reads/writes, not downstream I/O
     await this.state.blockConcurrencyWhile(async () => {
-      const state = await this.loadState();
+      const currentState = await this.loadState();
       const stored: ChatMessage = {
         id: message.id ?? crypto.randomUUID(),
         from: message.from,
@@ -72,26 +73,27 @@ export class DinerAgent implements DurableObject {
         channel: message.channel ?? "sms",
       };
 
-      state.messages.push(stored);
+      currentState.messages.push(stored);
       
       // Performance: Truncate history to last 50 messages
-      if (state.messages.length > 50) {
-        state.messages = state.messages.slice(-50);
+      if (currentState.messages.length > 50) {
+        currentState.messages = currentState.messages.slice(-50);
       }
       
-      await this.saveState(state);
-
-      // Process OTP verification first
-      const otpResult = await this.handleOtpIfPresent(state, message);
-      if (otpResult.handled) return;
-
-      // Handle commands / intent via shared handler
-      // This unifies logic with the rest of the system
-      const result = await handleInboundCommand(this.env, message);
-      if (result.response && message.from) {
-        await this.sendSms(message.from, result.response);
-      }
+      await this.saveState(currentState);
     });
+
+    // Process OTP verification first (outside critical section for state reads/writes)
+    // OTP mutations happen in their own critical section within handleOtpIfPresent
+    const otpResult = await this.handleOtpIfPresent(message);
+    if (otpResult.handled) return;
+
+    // Handle commands / intent via shared handler (outside critical section)
+    // This unifies logic with the rest of the system
+    const result = await handleInboundCommand(this.env, message);
+    if (result.response && message.from) {
+      await this.sendSms(message.from, result.response);
+    }
   }
 
   async startOtp(userId: string, ttlSeconds = 300): Promise<OtpRecord> {
@@ -136,24 +138,47 @@ export class DinerAgent implements DurableObject {
     await this.state.storage.put("state", state);
   }
 
-  private async handleOtpIfPresent(state: StoredState, message: InboundMessage) {
+  private async handleOtpIfPresent(message: InboundMessage) {
     const body = (message.body || "").trim();
-    if (!state.otp) return { handled: false };
-    if (Date.now() > state.otp.expiresAt) {
-      state.otp = undefined;
-      await this.saveState(state);
-      await this.sendSms(message.from, "Your previous verification code expired. Reply with the new code when prompted.");
-      return { handled: true };
+    
+    // Check and mutate OTP state in its own critical section
+    const otpHandled = await this.state.blockConcurrencyWhile(async () => {
+      const state = await this.loadState();
+      
+      if (!state.otp) return { handled: false, response: "" };
+      
+      if (Date.now() > state.otp.expiresAt) {
+        state.otp = undefined;
+        await this.saveState(state);
+        return { 
+          handled: true, 
+          response: "Your previous verification code expired. Reply with the new code when prompted." 
+        };
+      }
+      
+      if (body === state.otp.code && state.otp.userId === message.from) {
+        state.otp = undefined;
+        await this.saveState(state);
+        return { 
+          handled: true, 
+          response: "Verification successful. Proceeding with your request." 
+        };
+      }
+      
+      return { 
+        handled: true, 
+        response: "That code didn't match. Please re-enter the verification code we sent." 
+      };
+    });
+    
+    // Send SMS response outside the critical section
+    if (otpHandled.handled && otpHandled.response) {
+      await this.sendSms(message.from, otpHandled.response);
     }
-    if (body === state.otp.code && state.otp.userId === message.from) {
-      state.otp = undefined;
-      await this.saveState(state);
-      await this.sendSms(message.from, "Verification successful. Proceeding with your request.");
-      return { handled: true };
-    }
-    await this.sendSms(message.from, "That code didn’t match. Please re-enter the verification code we sent.");
-    return { handled: true };
+    
+    return { handled: otpHandled.handled };
   }
+
 
   private async sendSms(to: string, body: string) {
     if (!to || !body) return;
