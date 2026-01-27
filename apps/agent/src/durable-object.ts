@@ -83,8 +83,8 @@ export class DinerAgent implements DurableObject {
       await this.saveState(currentState);
     });
 
-    // Process OTP verification first (outside critical section for state reads/writes)
-    // OTP mutations happen in their own critical section within handleOtpIfPresent
+    // Process OTP verification first (outside message storage critical section)
+    // OTP state mutations use their own critical sections for atomicity
     const otpResult = await this.handleOtpIfPresent(message);
     if (otpResult.handled) return;
 
@@ -97,24 +97,28 @@ export class DinerAgent implements DurableObject {
   }
 
   async startOtp(userId: string, ttlSeconds = 300): Promise<OtpRecord> {
-    const code = this.generateOtp();
-    const expiresAt = Date.now() + ttlSeconds * 1000;
-    const state = await this.loadState();
-    state.otp = { code, expiresAt, userId };
-    await this.saveState(state);
-    return { code, expiresAt };
+    return await this.state.blockConcurrencyWhile(async () => {
+      const code = this.generateOtp();
+      const expiresAt = Date.now() + ttlSeconds * 1000;
+      const state = await this.loadState();
+      state.otp = { code, expiresAt, userId };
+      await this.saveState(state);
+      return { code, expiresAt };
+    });
   }
 
   async verifyOtp(userId: string, code: string): Promise<boolean> {
-    const state = await this.loadState();
-    if (!state.otp) return false;
-    if (state.otp.userId !== userId) return false;
-    if (Date.now() > state.otp.expiresAt) return false;
-    if (state.otp.code !== code) return false;
-    // Clear after verification
-    state.otp = undefined;
-    await this.saveState(state);
-    return true;
+    return await this.state.blockConcurrencyWhile(async () => {
+      const state = await this.loadState();
+      if (!state.otp) return false;
+      if (state.otp.userId !== userId) return false;
+      if (Date.now() > state.otp.expiresAt) return false;
+      if (state.otp.code !== code) return false;
+      // Clear after verification
+      state.otp = undefined;
+      await this.saveState(state);
+      return true;
+    });
   }
 
   private generateOtp(length = 6): string {
@@ -147,15 +151,22 @@ export class DinerAgent implements DurableObject {
       
       if (!state.otp) return { handled: false, response: "" };
       
+      // Check if OTP expired
       if (Date.now() > state.otp.expiresAt) {
         state.otp = undefined;
         await this.saveState(state);
         return { 
-          handled: true, 
-          response: "Your previous verification code expired. Reply with the new code when prompted." 
+          handled: false,  // Allow message to be processed normally
+          response: "" 
         };
       }
       
+      // Only handle if the message looks like an OTP code (digits only)
+      if (!/^\d+$/.test(body)) {
+        return { handled: false, response: "" };  // Not an OTP attempt, process normally
+      }
+      
+      // Verify the OTP code
       if (body === state.otp.code && state.otp.userId === message.from) {
         state.otp = undefined;
         await this.saveState(state);
@@ -165,6 +176,7 @@ export class DinerAgent implements DurableObject {
         };
       }
       
+      // Code didn't match
       return { 
         handled: true, 
         response: "That code didn't match. Please re-enter the verification code we sent." 
@@ -178,6 +190,7 @@ export class DinerAgent implements DurableObject {
     
     return { handled: otpHandled.handled };
   }
+
 
 
   private async sendSms(to: string, body: string) {
