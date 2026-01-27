@@ -11,7 +11,7 @@
  * - Production-ready
  */
 
-import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/cloudflare";
+import type { HeadersFunction, LoaderFunctionArgs, MetaFunction } from "@remix-run/cloudflare";
 import { json } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
 import { createHostnameCache, createSafeDb, getOpenStatus, getHoursForDay } from "@diner-saas/db";
@@ -19,6 +19,12 @@ import { MenuSection } from "~/components/MenuSection";
 import { HoursDisplay } from "~/components/HoursDisplay";
 import { CallButton } from "~/components/CallInterceptModal";
 import { HiringBanner } from "~/components/HiringBanner";
+
+export const headers: HeadersFunction = () => {
+  return {
+    "Cache-Control": "public, max-age=0, s-maxage=60",
+  };
+};
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   if (!data || !data.tenant) {

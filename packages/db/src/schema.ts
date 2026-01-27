@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 // TENANTS & CONFIG
@@ -46,7 +46,9 @@ export const authorizedUsers = sqliteTable("authorized_users", {
   lastLogin: text("last_login"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
   deletedAt: text("deleted_at"),
-});
+}, (table) => ({
+  tenantIdx: index("authorized_users_tenant_idx").on(table.tenantId),
+}));
 
 // BUSINESS SETTINGS
 export const businessSettings = sqliteTable("business_settings", {
@@ -73,7 +75,9 @@ export const operatingHours = sqliteTable("operating_hours", {
   startTime: text("start_time"),
   endTime: text("end_time"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => ({
+  tenantIdx: index("operating_hours_tenant_idx").on(table.tenantId),
+}));
 
 // SPECIAL DATES
 export const specialDates = sqliteTable("special_dates", {
@@ -86,7 +90,9 @@ export const specialDates = sqliteTable("special_dates", {
   customEndTime: text("custom_end_time"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => ({
+  tenantIdx: index("special_dates_tenant_idx").on(table.tenantId),
+}));
 
 // CATEGORIES
 export const categories = sqliteTable("categories", {
@@ -97,7 +103,9 @@ export const categories = sqliteTable("categories", {
   isVisible: integer("is_visible", { mode: "boolean" }).default(true),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => ({
+  tenantIdx: index("categories_tenant_idx").on(table.tenantId),
+}));
 
 // MENU ITEMS
 export const menuItems = sqliteTable("menu_items", {
@@ -118,7 +126,10 @@ export const menuItems = sqliteTable("menu_items", {
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
   deletedAt: text("deleted_at"),
-});
+}, (table) => ({
+  tenantIdx: index("menu_items_tenant_idx").on(table.tenantId),
+  categoryIdx: index("menu_items_category_idx").on(table.categoryId),
+}));
 
 // SESSIONS
 export const sessions = sqliteTable("sessions", {
