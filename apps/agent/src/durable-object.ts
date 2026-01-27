@@ -151,18 +151,25 @@ export class DinerAgent implements DurableObject {
       
       if (!state.otp) return { handled: false, response: "" };
       
+      // Check if the message looks like an OTP code (digits only)
+      const looksLikeOtp = /^\d+$/.test(body);
+      
       // Check if OTP expired
       if (Date.now() > state.otp.expiresAt) {
         state.otp = undefined;
         await this.saveState(state);
-        return { 
-          handled: false,  // Allow message to be processed normally
-          response: "" 
-        };
+        // Only notify if user is trying to enter a code
+        if (looksLikeOtp) {
+          return { 
+            handled: true, 
+            response: "Your previous verification code expired. Reply with the new code when prompted." 
+          };
+        }
+        return { handled: false, response: "" };  // Allow non-OTP messages to be processed
       }
       
-      // Only handle if the message looks like an OTP code (digits only)
-      if (!/^\d+$/.test(body)) {
+      // Only handle if the message looks like an OTP code
+      if (!looksLikeOtp) {
         return { handled: false, response: "" };  // Not an OTP attempt, process normally
       }
       
@@ -190,8 +197,6 @@ export class DinerAgent implements DurableObject {
     
     return { handled: otpHandled.handled };
   }
-
-
 
   private async sendSms(to: string, body: string) {
     if (!to || !body) return;
