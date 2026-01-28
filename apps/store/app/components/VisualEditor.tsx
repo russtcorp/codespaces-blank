@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -15,21 +15,16 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { SortableItem } from "./SortableItem";
 import { Button } from "@diner-saas/ui/button";
 import { Input } from "@diner-saas/ui/input";
 import { Card } from "@diner-saas/ui/card";
-import type { FetcherWithComponents } from "@remix-run/react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@diner-saas/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@diner-saas/ui/dialog";
+import { Progress } from "@diner-saas/ui/progress";
 import { SparklesIcon } from "lucide-react";
+import { INTENTS } from "@diner-saas/db/intents";
 
 interface MenuItem {
   id: number;
@@ -48,80 +43,40 @@ interface Category {
   items: MenuItem[];
 }
 
-interface VisualEditorProps {
-  categories: Category[];
-  cloudflareImagesUrl: string;
-  fetcher: FetcherWithComponents<any>;
+async function handleMenuMutation(formData: FormData) {
+  const response = await fetch("/dashboard/menu", { method: "POST", body: formData });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "A server error occurred.");
+  }
+  return response.json();
 }
 
-export function VisualEditor({ categories: initialCategories, cloudflareImagesUrl, fetcher }: VisualEditorProps) {
-  const [categories, setCategories] = useState(initialCategories);
-  const [expandedCategoryId, setExpandedCategoryId] = useState<number | null>(null);
+export function VisualEditor({ categories: initialCategories, cloudflareImagesUrl }: VisualEditorProps) {
+  const queryClient = useQueryClient();
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
-  const [isAddingCategory, setIsAddingCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  const { data: categories } = useQuery({
+    queryKey: ['menuCategories'],
+    queryFn: async () => {
+      const res = await fetch("/dashboard/menu");
+      const data = await res.json();
+      return data.categories;
+    },
+    initialData: initialCategories,
+  });
 
-  // Sync state with props and handle toasts
-  useEffect(() => {
-    setCategories(initialCategories);
-  }, [initialCategories]);
-
-  useEffect(() => {
-    if (fetcher.state === "idle" && fetcher.data?.success) {
-      if (fetcher.data.description) {
-        // AI Success
-        setEditingItem(prev => prev ? { ...prev, description: fetcher.data.description } : null);
-        toast.success("Description generated!");
-        setIsGenerating(false);
-      } else if (fetcher.data.category) {
-        toast.success("Category created successfully");
-      } else if (fetcher.data.item) {
-         toast.success("Item created successfully");
-      } else {
-        toast.success("Changes saved successfully");
+  const mutation = useMutation({
+    mutationFn: handleMenuMutation,
+    onSuccess: (data, variables) => {
+      toast.success("Changes saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ['menuCategories'] });
+      if (variables.get('intent') === INTENTS.generateDescription && data.description) {
+        setEditingItem(prev => prev ? { ...prev, description: data.description } : null);
       }
-    } else if (fetcher.state === "idle" && fetcher.data?.error) {
-      toast.error(fetcher.data.error);
-      setIsGenerating(false);
-    }
-  }, [fetcher.state, fetcher.data]);
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (!over || active.id === over.id) {
-      return;
-    }
-
-    // Reorder categories
-    setCategories((items) => {
-      const oldIndex = items.findIndex((item) => item.id === active.id);
-      const newIndex = items.findIndex((item) => item.id === over.id);
-
-      const reordered = arrayMove(items, oldIndex, newIndex);
-      
-      // Update sort_order in backend
-      const orderData = reordered.map((cat, index) => ({
-        id: cat.id,
-        sortOrder: index,
-      }));
-
-      const formData = new FormData();
-      formData.append("intent", "reorder-categories");
-      formData.append("order", JSON.stringify(orderData));
-      fetcher.submit(formData, { method: "post" });
-
-      return reordered;
-    });
-  };
+    },
+    onError: (error) => toast.error(error.message),
+  });
 
   const handleAddCategory = () => {
     if (!newCategoryName.trim()) return;

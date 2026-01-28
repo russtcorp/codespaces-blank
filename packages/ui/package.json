@@ -10,7 +10,8 @@
     "./card": "./src/components/card.tsx",
     "./toaster": "./src/components/toaster.tsx",
     "./data-table": "./src/components/data-table.tsx",
-    "./dialog": "./src/components/dialog.tsx"
+    "./dialog": "./src/components/dialog.tsx",
+    "./progress": "./src/components/progress.tsx"
   },
   "scripts": {
     "lint": "eslint src"

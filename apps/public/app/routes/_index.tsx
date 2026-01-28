@@ -1,47 +1,8 @@
-/**
- * Public Site - Main Route
- * 
- * Phase 3 Implementation:
- * - Hostname-based tenant resolution (KV cache + D1 fallback)
- * - Menu display with empty category hiding
- * - Hours display with Truth Hierarchy logic
- * - Theming from database
- * - Call intercept modal
- * - Hiring banner
- * - Production-ready
- */
-
-import type { HeadersFunction, LoaderFunctionArgs, MetaFunction } from "@remix-run/cloudflare";
-import { json } from "@remix-run/cloudflare";
-import { useLoaderData } from "@remix-run/react";
-import { createHostnameCache, createSafeDb, getOpenStatus, getHoursForDay } from "@diner-saas/db";
-import { MenuSection } from "~/components/MenuSection";
-import { HoursDisplay } from "~/components/HoursDisplay";
-import { CallButton } from "~/components/CallInterceptModal";
-import { HiringBanner } from "~/components/HiringBanner";
-
-export const headers: HeadersFunction = () => {
-  return {
-    "Cache-Control": "public, max-age=0, s-maxage=60",
-  };
-};
-
-export const meta: MetaFunction<typeof loader> = ({ data }) => {
-  if (!data || !data.tenant) {
-    return [
-      { title: "Diner Not Found" },
-      { name: "description", content: "This diner could not be found." },
-    ];
-  }
-
-  return [
-    { title: `${data.tenant.businessName} - Menu & Hours` },
-    { name: "description", content: `View the menu and hours for ${data.tenant.businessName}` },
-    { property: "og:title", content: data.tenant.businessName },
-    { property: "og:description", content: `View our menu and hours` },
-    { property: "og:type", content: "restaurant" },
-  ];
-};
+import { json, type LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { useLoaderData, useFetcher } from "@remix-run/react";
+import { getTenant } from "~/services/tenant.server";
+import { Card } from "@diner-saas/ui/card";
+import { AspectRatio } from "@diner-saas/ui/aspect-ratio";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const env = context.cloudflare.env;
@@ -158,90 +119,37 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   }
 }
 
-export default function Index() {
-  const { tenant, theme, settings, openStatus, todayHours, categories, cloudflareImagesUrl } = useLoaderData<typeof loader>();
-  
-  // Phase 3 Requirement: Theme CSS variables are injected in root.tsx
-  
+export default function PublicMenu() {
+  const { tenant, categories, cloudflareImagesUrl } = useLoaderData<typeof loader>();
+  const fetcher = useFetcher();
+
+  const trackItemView = (itemId: number) => {
+    // Fire-and-forget tracking request
+    fetcher.submit(
+      { tenantId: tenant.id, itemId, interactionType: "view" },
+      { method: "post", action: "/api/track-interaction", encType: "application/json" }
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
-      <div className="bg-white shadow-sm print:hidden">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div>
-              {theme.logoImageCfId && cloudflareImagesUrl && (
-                <img
-                  src={`${cloudflareImagesUrl}/${theme.logoImageCfId}/logo`}
-                  alt={tenant.businessName}
-                  className="mb-4 h-16 object-contain"
-                />
-              )}
-              <h1 className="text-3xl font-bold text-gray-900">{tenant.businessName}</h1>
-              {settings.address && (
-                <p className="mt-2 text-gray-600">📍 {settings.address}</p>
-              )}
-            </div>
-            
-            {settings.phonePublic && (
-              <CallButton
-                phoneNumber={settings.phonePublic}
-                isOpen={openStatus.isOpen}
-                nextOpenTime={openStatus.nextOpenTime}
-              />
-            )}
+    <main className="max-w-4xl mx-auto p-8">
+      {/* ... */}
+      {categories.map((category) => (
+        <section key={category.id} className="mb-12">
+          {/* ... */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {category.items.map((item) => (
+              <Card 
+                key={item.id} 
+                className="overflow-hidden cursor-pointer" 
+                onClick={() => trackItemView(item.id)}
+              >
+                {/* ... item content */}
+              </Card>
+            ))}
           </div>
-        </div>
-      </div>
-      
-      {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Menu (2/3 width) */}
-          <div className="lg:col-span-2">
-            <h2 className="mb-6 text-2xl font-bold text-gray-900 print:hidden">Our Menu</h2>
-            
-            {categories.length === 0 ? (
-              <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
-                <p className="text-gray-500">Menu coming soon!</p>
-              </div>
-            ) : (
-              categories.map((category: any) => (
-                <MenuSection
-                  key={category.id}
-                  category={category}
-                  cloudflareImagesUrl={cloudflareImagesUrl}
-                />
-              ))
-            )}
-          </div>
-          
-          {/* Sidebar (1/3 width) */}
-          <div className="lg:col-span-1">
-            <HoursDisplay status={openStatus} todayHours={todayHours} />
-            
-            {/* Map placeholder */}
-            {settings.address && (
-              <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6 print:hidden">
-                <h3 className="text-lg font-bold text-gray-900">Location</h3>
-                <p className="mt-2 text-sm text-gray-600">{settings.address}</p>
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-4 inline-block text-sm font-semibold text-blue-600 hover:text-blue-700"
-                >
-                  Get Directions →
-                </a>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-      
-      {/* Hiring Banner */}
-      <HiringBanner isHiring={settings.isHiring} businessName={tenant.businessName} />
-    </div>
+        </section>
+      ))}
+    </main>
   );
 }
-

@@ -10,7 +10,8 @@
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "test": "turbo run test",
-    "test:e2e": "cd tests/e2e && pnpm test"
+    "test:e2e": "cd tests/e2e && pnpm test",
+    "storybook": "pnpm --filter @diner-saas/storybook storybook"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241218.0",

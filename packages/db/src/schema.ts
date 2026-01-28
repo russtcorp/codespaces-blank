@@ -1,5 +1,5 @@
-import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
-import { sql } from "drizzle-orm";
+import { json, sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import { relations, sql } from "drizzle-orm";
 
 // TENANTS & CONFIG
 export const tenants = sqliteTable("tenants", {
@@ -32,9 +32,10 @@ export const themeConfig = sqliteTable("theme_config", {
   updatedAt: text("updatedAt").default(sql`CURRENT_TIMESTAMP`),
 });
 
-// AUTH & USERS
-export const authorizedUsers = sqliteTable("authorized_users", {
+export const menuItemInteractions = sqliteTable("menu_item_interactions", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  itemId: integer("item_id").notNull().references(() => menuItems.id, { onDelete: 'cascade' }),
+  interactionType: text("interaction_type").notNull(), // e.g., 'view'
   tenantId: text("tenantId").references(() => tenants.id),
   phoneNumber: text("phoneNumber"),
   email: text("email"),
@@ -47,7 +48,7 @@ export const authorizedUsers = sqliteTable("authorized_users", {
   createdAt: text("createdAt").default(sql`CURRENT_TIMESTAMP`),
   deletedAt: text("deletedAt"),
 }, (table) => ({
-  tenantIdx: index("authorized_users_tenant_idx").on(table.tenantId),
+  tenantIdIdx: index("menu_item_interactions_tenant_id_idx").on(table.tenantId),
 }));
 
 // BUSINESS SETTINGS

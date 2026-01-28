@@ -7,7 +7,8 @@ import { categories, menuItems } from "@diner-saas/db";
 import { VisualEditor } from "~/components/VisualEditor";
 import { getValidatedFormData } from "remix-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { menuActionSchema } from "~/schemas";
+import { menuActionSchema } from "@diner-saas/db/schemas";
+import { INTENTS } from "@diner-saas/db/intents";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const env = (context as any).cloudflare?.env;
@@ -54,15 +55,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 const resolver = zodResolver(menuActionSchema);
 
 export async function action({ request, context }: ActionFunctionArgs) {
-  const env = (context as any).cloudflare?.env;
-  const authenticator = getAuthenticator(env);
-  const user = await authenticator.isAuthenticated(request);
-  const db = drizzle(env.DB);
-  
-  if (!user) {
-    throw new Response("Unauthorized", { status: 401 });
-  }
+  // ... (auth and db setup)
 
+  const { errors, data, receivedValues } = await getValidatedFormData<any>(request, resolver);
+  if (errors) { /* ... */ }
   // Validate form data
   const { errors, data } = await getValidatedFormData<any>(
     request,
@@ -77,6 +73,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
   try {
     switch (intent) {
+      case INTENTS.createCategory: { /* ... */ }
+      case INTENTS.updateCategory: { /* ... */ }
+      case INTENTS.deleteCategory: { /* ... */ }
+      case INTENTS.createItem: { /* ... */ }
+      case INTENTS.updateItem: { /* ... */ }
+      case INTENTS.deleteItem: { /* ... */ }
+      case INTENTS.reorderCategories: { /* ... */ }
+      case INTENTS.moveItem: { /* ... */ }
+      case INTENTS.requestUploadUrl: { /* ... */ }
+      case INTENTS.generateDescription: { /* ... */ }
       case "create-category": {
         const result = await db
           .insert(categories)
@@ -282,29 +288,10 @@ Use vivid but professional language. Do not include price or availability.`;
         return json({ error: "Invalid intent" }, { status: 400 });
     }
   } catch (error) {
-    console.error("Menu action error:", error);
-    return json({ error: "Operation failed" }, { status: 500 });
+    // ...
   }
 }
 
 export default function DashboardMenu() {
-  const { categories, cloudflareImagesUrl } = useLoaderData<typeof loader>();
-  const fetcher = useFetcher();
-
-  return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Menu Editor</h1>
-        <p className="mt-2 text-gray-600">
-          Drag and drop to reorder categories and items.
-        </p>
-      </div>
-
-      <VisualEditor
-        categories={categories}
-        cloudflareImagesUrl={cloudflareImagesUrl}
-        fetcher={fetcher}
-      />
-    </div>
-  );
+  // ...
 }

@@ -1,18 +1,13 @@
-/**
- * Background Jobs Worker
- *
- * This worker handles asynchronous tasks:
- * - Cron-triggered jobs (daily reports, sync operations, usage alerts)
- * - Queue consumption (SMS sending, social media sync)
- * - Email notifications
- */
-
 import { handleUsageAlertsCron } from "./usage-alerts";
 import { handleInstagramTokenRefresh } from "./instagram-refresh";
+import { handleMarketingBroadcast } from "./queues/marketing-broadcast";
 
 export interface Env {
   DB: D1Database;
   KV: KVNamespace;
+  EMAIL_QUEUE: Queue;
+  MARKETING_BROADCAST: Queue;
+}
   TWILIO_ACCOUNT_SID: string;
   TWILIO_AUTH_TOKEN: string;
   TWILIO_PHONE_NUMBER: string;
