@@ -34,7 +34,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     return json({ success: true, sentiment: object.sentiment });
 
   } catch (error) {
-    console.error("Sentiment analysis failed:", error);
+    logger.error("Sentiment analysis failed:", error);
     return json({ error: 'Failed to analyze sentiment' }, { status: 500 });
   }
 }
