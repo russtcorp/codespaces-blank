@@ -37,7 +37,7 @@ export class DinerAgent implements DurableObject {
         );
         return new Response(stream.body, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     } catch (error) {
-        console.error("Error executing command via chat:", error);
+        logger.error("Error executing command via chat:", error);
         return new Response("Error processing your request.", { status: 500 });
     }
   }
