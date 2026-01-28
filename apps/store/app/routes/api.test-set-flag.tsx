@@ -24,7 +24,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     await setFeatureFlag(env.FEATURE_FLAGS, user.tenantId, flagName, value);
     return json({ success: true });
   } catch (error) {
-    console.error("Failed to set feature flag for test:", error);
+    logger.error("Failed to set feature flag for test:", error);
     return json({ error: 'Could not set feature flag' }, { status: 500 });
   }
 }
