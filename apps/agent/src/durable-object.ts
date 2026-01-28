@@ -45,7 +45,7 @@ export class DinerAgent extends Agent<Env> {
 
     if (url.pathname === "/otp/verify" && request.method === "POST") {
       const body = (await request.json()) as { userId: string; code: string };
-      const ok = await this.verifyOtp(body.userId, code);
+      const ok = await this.verifyOtp(body.userId, body.code);
       return new Response(JSON.stringify({ ok }), {
         status: ok ? 200 : 401,
         headers: { "Content-Type": "application/json" },
