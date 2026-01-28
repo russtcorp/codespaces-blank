@@ -12,14 +12,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
   // Derive tenantId from hostname instead of accepting from client
   const url = new URL(request.url);
   const host = url.hostname;
-  const db = drizzle(env.DB);
   
   // Resolve tenant from hostname
   let tenantId: string | null = null;
-  if (env.KV) {
-    const hostnameCache = createHostnameCache(env.KV, db);
-    tenantId = await hostnameCache.getTenantId(host);
+  if (!env.KV) {
+    return json({ error: "KV namespace not configured" }, { status: 500 });
   }
+  
+  const db = drizzle(env.DB);
+  const hostnameCache = createHostnameCache(env.KV, db);
+  tenantId = await hostnameCache.getTenantId(host);
   
   if (!tenantId) {
     return json({ error: "Invalid tenant" }, { status: 400 });

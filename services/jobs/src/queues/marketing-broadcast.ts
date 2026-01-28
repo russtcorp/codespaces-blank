@@ -47,8 +47,16 @@ export async function handleMarketingBroadcast(
       msg.ack();
     } catch (error) {
       console.error(`Failed to process broadcast for tenant ${tenantId}:`, error);
-      // Retry the message by not acknowledging it
-      msg.retry();
+      // Only retry for transient errors (network issues, temporary DB failures)
+      // For permanent errors (invalid data), we should ack to prevent infinite retry
+      const isPermanentError = error instanceof Error && 
+        (error.message.includes('invalid') || error.message.includes('not found'));
+      
+      if (isPermanentError) {
+        console.error(`Permanent error for tenant ${tenantId}, acknowledging message`);
+        msg.ack();
+      }
+      // For transient errors, message will be retried automatically by not acknowledging
     }
   }
 }

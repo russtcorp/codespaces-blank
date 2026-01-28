@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { generateObject } from 'ai';
 import { getAIProvider } from "@diner-saas/ai/src/provider";
 import { z } from "zod";
+import { getSession } from "~/services/auth.server";
 
 export async function action({ request, context }: ActionFunctionArgs) {
   const env = context.cloudflare.env as any;
@@ -12,20 +13,27 @@ export async function action({ request, context }: ActionFunctionArgs) {
     return json({ error: 'Method not allowed' }, { status: 405 });
   }
 
+  // Authenticate the user
+  const { user } = await getSession(request, context);
+  if (!user) {
+    return json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { reviewId, content } = await request.json();
   // ... (validation)
   
   const db = drizzle(env.DB);
   
-  // Verify the review exists and get its tenantId
+  // Verify the review exists and belongs to the user's tenant
   const review = await db.select({ tenantId: reviews.tenantId }).from(reviews).where(eq(reviews.id, reviewId)).get();
   if (!review) {
     return json({ error: 'Review not found' }, { status: 404 });
   }
   
-  // TODO: Validate that the authenticated user has access to this tenant
-  // This requires session validation which should be added when implementing auth
-  // For now, we at least verify the review exists
+  // Validate tenant access
+  if (review.tenantId !== user.tenantId) {
+    return json({ error: 'Unauthorized access to this review' }, { status: 403 });
+  }
   
   const { largeModel } = getAIProvider(env);
 

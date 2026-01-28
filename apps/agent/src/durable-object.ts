@@ -16,8 +16,9 @@ export class DinerAgent implements DurableObject {
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
     this.env = env;
-    // Extract tenantId from the Durable Object ID
-    this.tenantId = state.id.toString();
+    // Extract tenantId from the Durable Object ID name
+    // The DO is created via idFromName(tenantId), so we can extract it
+    this.tenantId = state.id.name || "default-tenant";
   }
 
   async fetch(request: Request): Promise<Response> {
