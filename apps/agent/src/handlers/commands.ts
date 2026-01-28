@@ -74,7 +74,7 @@ function normalizeTime(raw: string): string {
 async function markItemAvailability(env: Env, tenantId: string, query: string, isAvailable: boolean): Promise<string | null> {
   const db = env.DB;
   const all = await db
-    .prepare("SELECT id, name FROM menu_items WHERE tenant_id = ? AND deleted_at IS NULL")
+    .prepare("SELECT id, name FROM menu_items WHERE tenantId = ? AND deletedAt IS NULL")
     .bind(tenantId)
     .all<{ id: number; name: string }>();
   if (!all || !all.results || all.results.length === 0) return null;
@@ -83,7 +83,7 @@ async function markItemAvailability(env: Env, tenantId: string, query: string, i
   if (!best) return null;
 
   await db
-    .prepare("UPDATE menu_items SET is_available = ? WHERE id = ? AND tenant_id = ?")
+    .prepare("UPDATE menu_items SET isAvailable = ? WHERE id = ? AND tenantId = ?")
     .bind(isAvailable ? 1 : 0, best.id, tenantId)
     .run();
 
@@ -99,7 +99,7 @@ async function extendHours(env: Env, tenantId: string, tz: string, until: string
   if (day === undefined) return false;
 
   const update = await env.DB
-    .prepare(`UPDATE operating_hours SET end_time = ? WHERE tenant_id = ? AND day_of_week = ?`)
+    .prepare(`UPDATE operating_hours SET endTime = ? WHERE tenantId = ? AND dayOfWeek = ?`)
     .bind(until, tenantId, day)
     .run();
 
@@ -107,7 +107,7 @@ async function extendHours(env: Env, tenantId: string, tz: string, until: string
   if ((update.meta?.changes ?? 0) === 0) {
     await env.DB
       .prepare(
-        `INSERT INTO operating_hours (tenant_id, day_of_week, start_time, end_time)
+        `INSERT INTO operating_hours (tenantId, dayOfWeek, startTime, endTime)
          VALUES (?, ?, '06:00', ?)`
       )
       .bind(tenantId, day, until)

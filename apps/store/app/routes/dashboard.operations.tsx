@@ -23,23 +23,23 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const hours = await db
     .select()
     .from(operatingHours)
-    .where(eq(operatingHours.tenant_id, user.tenantId))
-    .orderBy(operatingHours.day_of_week, operatingHours.start_time)
+    .where(eq(operatingHours.tenantId, user.tenantId))
+    .orderBy(operatingHours.dayOfWeek, operatingHours.startTime)
     .all();
 
   // Fetch special dates
   const special = await db
     .select()
     .from(specialDates)
-    .where(eq(specialDates.tenant_id, user.tenantId))
-    .orderBy(specialDates.date_iso)
+    .where(eq(specialDates.tenantId, user.tenantId))
+    .orderBy(specialDates.dateIso)
     .all();
 
   // Fetch business settings
   const settings = await db
     .select()
     .from(businessSettings)
-    .where(eq(businessSettings.tenant_id, user.tenantId))
+    .where(eq(businessSettings.tenantId, user.tenantId))
     .get();
 
   return json({ hours, specialDates: special, settings, user });
@@ -67,8 +67,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
           .delete(operatingHours)
           .where(
             and(
-              eq(operatingHours.tenant_id, user.tenantId),
-              eq(operatingHours.day_of_week, dayOfWeek)
+              eq(operatingHours.tenantId, user.tenantId),
+              eq(operatingHours.dayOfWeek, dayOfWeek)
             )
           )
           .run();
@@ -117,7 +117,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
           .where(
             and(
               eq(specialDates.id, id),
-              eq(specialDates.tenant_id, user.tenantId)
+              eq(specialDates.tenantId, user.tenantId)
             )
           )
           .run();
@@ -135,7 +135,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             emergency_close_reason: reason,
             emergency_reopen_time: reopenTime,
           })
-          .where(eq(businessSettings.tenant_id, user.tenantId))
+          .where(eq(businessSettings.tenantId, user.tenantId))
           .run();
 
         // Trigger cache purge
@@ -163,7 +163,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
             emergency_close_reason: null,
             emergency_reopen_time: null,
           })
-          .where(eq(businessSettings.tenant_id, user.tenantId))
+          .where(eq(businessSettings.tenantId, user.tenantId))
           .run();
 
         // Trigger cache purge
@@ -188,7 +188,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const currentSettings = await db
           .select()
           .from(businessSettings)
-          .where(eq(businessSettings.tenant_id, user.tenantId))
+          .where(eq(businessSettings.tenantId, user.tenantId))
           .get();
 
         const newValue = !currentSettings?.is_hiring;
@@ -196,7 +196,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         await db
           .update(businessSettings)
           .set({ is_hiring: newValue })
-          .where(eq(businessSettings.tenant_id, user.tenantId))
+          .where(eq(businessSettings.tenantId, user.tenantId))
           .run();
 
         return json({ success: true, isHiring: newValue });

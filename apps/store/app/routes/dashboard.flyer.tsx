@@ -21,14 +21,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const settings = await db
       .select()
       .from(businessSettings)
-      .where(eq(businessSettings.tenant_id, user.tenantId))
+      .where(eq(businessSettings.tenantId, user.tenantId))
       .get();
 
     // Fetch theme config for logo
     const theme = await db
       .select()
       .from(themeConfig)
-      .where(eq(themeConfig.tenant_id, user.tenantId))
+      .where(eq(themeConfig.tenantId, user.tenantId))
       .get();
 
     if (!settings) {
