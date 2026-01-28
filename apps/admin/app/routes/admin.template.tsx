@@ -5,6 +5,11 @@ import { useState } from "react";
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const env = (context as any).cloudflare?.env;
   
+  // TODO: Add proper admin authentication check here
+  // For now, this is a placeholder - implement authentication before production
+  // Example: const adminUser = await authenticateAdmin(request, env);
+  // if (!adminUser) throw new Response("Unauthorized", { status: 401 });
+  
   // Fetch theme.css from R2
   const object = await env.ASSETS.get("theme.css");
   let css = "";
@@ -29,6 +34,12 @@ body {
 
 export async function action({ request, context }: ActionFunctionArgs) {
   const env = (context as any).cloudflare?.env;
+  
+  // TODO: Add proper admin authentication check here
+  // For now, this is a placeholder - implement authentication before production
+  // Example: const adminUser = await authenticateAdmin(request, env);
+  // if (!adminUser) throw new Response("Unauthorized", { status: 401 });
+  
   const formData = await request.formData();
   const css = formData.get("css") as string;
 

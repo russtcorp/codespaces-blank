@@ -1,8 +1,8 @@
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/cloudflare";
-import { useLoaderData, Form, useNavigation } from "@remix-run/react";
+import { useLoaderData } from "@remix-run/react";
 import { drizzle } from "drizzle-orm/d1";
 import { tenants } from "@diner-saas/db";
-import { getStripeClient, listSubscriptions } from "~/services/stripe.server";
+import { listSubscriptions } from "~/services/stripe.server";
 import { DataTable } from "@diner-saas/ui/data-table";
 import { Button } from "@diner-saas/ui/button";
 import { ColumnDef } from "@tanstack/react-table";
@@ -20,6 +20,12 @@ type SubscriptionData = {
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const env = (context as any).cloudflare?.env;
+  
+  // TODO: Add proper admin authentication check here
+  // For now, this is a placeholder - implement authentication before production
+  // Example: const adminUser = await authenticateAdmin(request, env);
+  // if (!adminUser) throw new Response("Unauthorized", { status: 401 });
+  
   const db = drizzle(env.DB);
 
   if (!env.STRIPE_SECRET_KEY) {

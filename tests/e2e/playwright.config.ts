@@ -8,31 +8,54 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
 
-  // Global setup file for authentication
-  globalSetup: require.resolve('./setup/auth.setup.ts'),
+  // Global setup file for authentication - commented out until implemented
+  // globalSetup: require.resolve('./setup/auth.setup.ts'),
 
   use: {
     trace: 'on-first-retry',
+    baseURL: process.env.PUBLIC_BASE_URL || 'http://127.0.0.1:3000',
   },
 
-// ... (imports and existing config)
-
   projects: [
-    // ... (existing public and store projects)
+    {
+      name: 'chromium-public',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: process.env.PUBLIC_BASE_URL || 'http://127.0.0.1:3000',
+      },
+      testMatch: /public-site\.spec\.ts/,
+    },
+    {
+      name: 'chromium-store',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: process.env.STORE_BASE_URL || 'http://127.0.0.1:3001',
+      },
+      testMatch: /store-.*\.spec\.ts/,
+    },
     {
       name: 'chromium-admin',
       use: {
         ...devices['Desktop Chrome'],
         baseURL: process.env.ADMIN_BASE_URL || 'http://127.0.0.1:8790',
       },
-      testMatch: /admin-onboarding\.spec\.ts/,
+      testMatch: /admin-.*\.spec\.ts/,
     },
   ],
 
   webServer: [
-    // ... (existing public and store webServers)
     {
-      command: 'cd ../ && pnpm dev:admin',
+      command: 'cd ../../apps/public && pnpm dev',
+      url: 'http://127.0.0.1:3000',
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: 'cd ../../apps/store && pnpm dev',
+      url: 'http://127.0.0.1:3001',
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: 'cd ../../apps/admin && pnpm dev',
       url: 'http://127.0.0.1:8790',
       reuseExistingServer: !process.env.CI,
     },

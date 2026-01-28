@@ -1,4 +1,10 @@
-import type { VectorizeSyncMessage } from "@diner-saas/db/src/menu-crud";
+// Define the message type for vectorize sync queue
+export interface VectorizeSyncMessage {
+  type: "sync-item" | "delete-item";
+  tenantId: string;
+  itemId: number;
+  text?: string;
+}
 
 export interface Env {
   AI: any;

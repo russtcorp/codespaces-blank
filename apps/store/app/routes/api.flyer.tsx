@@ -4,7 +4,7 @@ import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/render
 import QRCode from "qrcode";
 import { getAuthenticator } from "~/services/auth.server";
 import { drizzle } from "drizzle-orm/d1";
-import { businessSettings, themeConfig, tenants, eq } from "@diner-saas/db";
+import { businessSettings, tenants, eq } from "@diner-saas/db";
 
 // PDF Styles
 const styles = StyleSheet.create({

@@ -8,17 +8,27 @@
  */
 
 import { handleUsageAlertsCron } from "./usage-alerts";
-import { handleVectorizeSync } from "./queues/vectorize-sync";
-import { handleSocialSync } from "./queues/social-sync";
-import { handleEmailQueue } from "./queues/email-queue";
 import { handleInstagramTokenRefresh } from "./instagram-refresh";
 
 export interface Env {
-  // ... (existing env properties)
+  DB: D1Database;
+  KV: KVNamespace;
+  TWILIO_ACCOUNT_SID: string;
+  TWILIO_AUTH_TOKEN: string;
+  TWILIO_PHONE_NUMBER: string;
+  SMS_OUTBOUND: Queue;
 }
 
 export default {
-  // ... (existing fetch and queue handlers)
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    
+    if (url.pathname === "/health") {
+      return new Response("OK", { status: 200 });
+    }
+    
+    return new Response("Not Found", { status: 404 });
+  },
 
   async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
     console.log(`Cron triggered at ${new Date().toISOString()}`);
@@ -38,17 +48,9 @@ export default {
       })(),
     ]);
   },
-  // ...
-}
-
-// ... (existing sendSms logic)
-
-
-
+};
 
 interface OutboundMessage {
-// ... existing interface ...
-
   to: string;
   body: string;
 }
@@ -81,4 +83,3 @@ async function sendSms(env: Env, to: string, body: string) {
     console.error("Twilio send error", err);
   }
 }
-
