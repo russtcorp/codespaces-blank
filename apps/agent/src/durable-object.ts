@@ -257,35 +257,44 @@ export class DinerAgent extends Agent<Env> {
    */
   private async getTenantInfo(): Promise<{ businessName: string; phonePublic: string }> {
     const CACHE_TTL_MS = 3600000; // 1 hour cache
-    const state = await this.loadState();
-    
-    // Return cached value if still fresh
-    if (state.tenantInfo && Date.now() - state.tenantInfo.cachedAt < CACHE_TTL_MS) {
-      return {
-        businessName: state.tenantInfo.businessName,
-        phonePublic: state.tenantInfo.phonePublic,
-      };
-    }
 
-    // Fetch fresh data from database
-    const tenantId = this.state.id.name; // Tenant ID is the Durable Object name
-    const db = drizzle(this.env.DB, { schema });
-    
-    try {
-      // Fetch tenant name
-      const tenant = await db.query.tenants.findFirst({
-        where: eq(schema.tenants.id, tenantId),
-      });
+    return await this.state.blockConcurrencyWhile(async () => {
+      const state = await this.loadState();
+      
+      // Return cached value if still fresh
+      if (state.tenantInfo && Date.now() - state.tenantInfo.cachedAt < CACHE_TTL_MS) {
+        return {
+          businessName: state.tenantInfo.businessName,
+          phonePublic: state.tenantInfo.phonePublic,
+        };
+      }
 
-      // Fetch business settings for phone number
-      const settings = await db.query.businessSettings.findFirst({
-        where: eq(schema.businessSettings.tenantId, tenantId),
-      });
+      // Fetch fresh data from database
+      const tenantId = this.state.id.name; // Tenant ID is the Durable Object name
+      const db = drizzle(this.env.DB, { schema });
+      
+      let businessName = "Your Diner";
+      let phonePublic = "555-0199";
 
-      const businessName = tenant?.businessName || "Your Diner";
-      const phonePublic = settings?.phonePublic || "555-0199";
+      try {
+        // Fetch tenant name
+        const tenant = await db.query.tenants.findFirst({
+          where: eq(schema.tenants.id, tenantId),
+        });
 
-      // Cache the result
+        // Fetch business settings for phone number
+        const settings = await db.query.businessSettings.findFirst({
+          where: eq(schema.businessSettings.tenantId, tenantId),
+        });
+
+        businessName = tenant?.businessName || businessName;
+        phonePublic = settings?.phonePublic || phonePublic;
+      } catch (err) {
+        console.error("Failed to fetch tenant info, using defaults", err);
+        // Continue with defaults - they will be cached below
+      }
+
+      // Cache the result (including defaults if fetch failed)
       state.tenantInfo = {
         businessName,
         phonePublic,
@@ -294,10 +303,7 @@ export class DinerAgent extends Agent<Env> {
       await this.saveState(state);
 
       return { businessName, phonePublic };
-    } catch (err) {
-      console.error("Failed to fetch tenant info, using defaults", err);
-      return { businessName: "Your Diner", phonePublic: "555-0199" };
-    }
+    });
   }
 }
 
