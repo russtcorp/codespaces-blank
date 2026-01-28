@@ -132,8 +132,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
         await db
           .update(businessSettings)
           .set({
-            emergency_close_reason: reason,
-            emergency_reopen_time: reopenTime,
+            emergencyCloseReason: reason,
+            emergencyReopenTime: reopenTime,
           })
           .where(eq(businessSettings.tenantId, user.tenantId))
           .run();
@@ -160,8 +160,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
         await db
           .update(businessSettings)
           .set({
-            emergency_close_reason: null,
-            emergency_reopen_time: null,
+            emergencyCloseReason: null,
+            emergencyReopenTime: null,
           })
           .where(eq(businessSettings.tenantId, user.tenantId))
           .run();
@@ -191,11 +191,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
           .where(eq(businessSettings.tenantId, user.tenantId))
           .get();
 
-        const newValue = !currentSettings?.is_hiring;
+        const newValue = !currentSettings?.isHiring;
 
         await db
           .update(businessSettings)
-          .set({ is_hiring: newValue })
+          .set({ isHiring: newValue })
           .where(eq(businessSettings.tenantId, user.tenantId))
           .run();
 
