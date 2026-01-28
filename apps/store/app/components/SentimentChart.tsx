@@ -12,7 +12,7 @@ const processDataForChart = (data: { date: string; sentiment: 'positive' | 'neut
   return Object.values(groupedData);
 };
 
-export function SentimentChart({ data }) {
+export function SentimentChart({ data }: { data: { date: string; sentiment: 'positive' | 'neutral' | 'negative'; count: number }[] }) {
   const chartData = processDataForChart(data);
 
   return (
