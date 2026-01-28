@@ -48,7 +48,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     return json({ success: true }, { status: 201 });
   } catch (error) {
-    console.error("Failed to ingest review:", error);
+    logger.error("Failed to ingest review:", error);
     return json({ error: "Could not ingest review" }, { status: 500 });
   }
 }
