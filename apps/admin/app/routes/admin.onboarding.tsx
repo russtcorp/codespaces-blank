@@ -1,11 +1,14 @@
 import { json, type ActionFunctionArgs } from "@remix-run/cloudflare";
 import { useActionData, Form, useNavigation } from "@remix-run/react";
 import { useState } from "react";
+import { Logger } from "@diner-saas/logger";
 
 export async function action({ request, context }: ActionFunctionArgs) {
   const formData = await request.formData();
   const intent = formData.get("intent");
   const env = (context as any).cloudflare?.env || (request as any).env;
+  const ctx = (context as any).cloudflare?.ctx;
+  const logger = new Logger(request, env, ctx);
 
   try {
     switch (intent) {
@@ -90,7 +93,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         return json({ error: "Invalid intent" }, { status: 400 });
     }
   } catch (error) {
-    console.error("Onboarding action error:", error);
+    logger.error(error instanceof Error ? error : new Error(String(error)));
     return json({ error: String(error) }, { status: 500 });
   }
 }

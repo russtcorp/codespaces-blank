@@ -6,6 +6,7 @@ import { getStripeClient, listSubscriptions } from "~/services/stripe.server";
 import { DataTable } from "@diner-saas/ui/data-table";
 import { Button } from "@diner-saas/ui/button";
 import { ColumnDef } from "@tanstack/react-table";
+import { Logger } from "@diner-saas/logger";
 
 // Define the shape of our table data
 type SubscriptionData = {
@@ -20,7 +21,9 @@ type SubscriptionData = {
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const env = (context as any).cloudflare?.env;
+  const ctx = (context as any).cloudflare?.ctx;
   const db = drizzle(env.DB);
+  const logger = new Logger(request, env, ctx);
 
   if (!env.STRIPE_SECRET_KEY) {
     // Return empty state if keys not configured
@@ -35,7 +38,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   try {
     stripeSubs = await listSubscriptions(env.STRIPE_SECRET_KEY);
   } catch (err) {
-    console.error("Stripe fetch error:", err);
+    logger.error(err instanceof Error ? err : new Error(String(err)));
   }
 
   // Merge data

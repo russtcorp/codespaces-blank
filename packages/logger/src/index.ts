@@ -20,9 +20,9 @@ export class Logger {
   private sentry: Toucan | null = null;
   private context: LogContext = {};
 
-  constructor(request: Request, env: any, ctx: ExecutionContext) {
+  constructor(request: Request, env: any, ctx?: ExecutionContext) {
     // Initialize Sentry (Toucan)
-    if (env.SENTRY_DSN) {
+    if (env.SENTRY_DSN && ctx) {
       this.sentry = new Toucan({
         dsn: env.SENTRY_DSN,
         context: ctx,
