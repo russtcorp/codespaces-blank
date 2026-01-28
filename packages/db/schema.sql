@@ -2,130 +2,130 @@
 CREATE TABLE IF NOT EXISTS tenants (
   id TEXT PRIMARY KEY,
   slug TEXT UNIQUE,
-  custom_domain TEXT UNIQUE,
-  business_name TEXT,
-  google_place_id TEXT,
-  stripe_subscription_id TEXT,
-  subscription_status TEXT DEFAULT 'trial',
-  version_channel TEXT DEFAULT 'stable',
+  customDomain TEXT UNIQUE,
+  businessName TEXT,
+  googlePlaceId TEXT,
+  stripeSubscriptionId TEXT,
+  subscriptionStatus TEXT DEFAULT 'trial',
+  versionChannel TEXT DEFAULT 'stable',
   status TEXT DEFAULT 'building',
-  email_alias TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  deleted_at DATETIME
+  emailAlias TEXT,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  deletedAt DATETIME
 );
 
 -- THEME CONFIG
 CREATE TABLE IF NOT EXISTS theme_config (
-  tenant_id TEXT PRIMARY KEY,
-  primary_color TEXT,
-  secondary_color TEXT,
-  font_heading TEXT,
-  font_body TEXT,
-  layout_style TEXT,
-  logo_image_cf_id TEXT,
-  hero_image_cf_id TEXT,
-  custom_css TEXT,
-  FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+  tenantId TEXT PRIMARY KEY,
+  primaryColor TEXT,
+  secondaryColor TEXT,
+  fontHeading TEXT,
+  fontBody TEXT,
+  layoutStyle TEXT,
+  logoImageCfId TEXT,
+  heroImageCfId TEXT,
+  customCss TEXT,
+  FOREIGN KEY (tenantId) REFERENCES tenants(id)
 );
 
 -- AUTH & USERS
 CREATE TABLE IF NOT EXISTS authorized_users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  tenant_id TEXT,
-  phone_number TEXT,
+  tenantId TEXT,
+  phoneNumber TEXT,
   email TEXT,
   name TEXT,
   role TEXT,
   permissions TEXT,
-  notification_preferences TEXT,
-  security_challenge_code TEXT,
-  last_login DATETIME,
-  deleted_at DATETIME,
-  FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+  notificationPreferences TEXT,
+  securityChallengeCode TEXT,
+  lastLogin DATETIME,
+  deletedAt DATETIME,
+  FOREIGN KEY (tenantId) REFERENCES tenants(id)
 );
 
 -- BUSINESS SETTINGS
 CREATE TABLE IF NOT EXISTS business_settings (
-  tenant_id TEXT PRIMARY KEY,
+  tenantId TEXT PRIMARY KEY,
   address TEXT,
-  phone_public TEXT,
+  phonePublic TEXT,
   timezone TEXT DEFAULT 'America/New_York',
-  is_hiring INTEGER DEFAULT 0,
-  marketing_pixels TEXT,
-  emergency_close_reason TEXT,
-  emergency_reopen_time DATETIME,
-  FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+  isHiring INTEGER DEFAULT 0,
+  marketingPixels TEXT,
+  emergencyCloseReason TEXT,
+  emergencyReopenTime DATETIME,
+  FOREIGN KEY (tenantId) REFERENCES tenants(id)
 );
 
 -- OPERATING HOURS
 CREATE TABLE IF NOT EXISTS operating_hours (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  tenant_id TEXT,
-  day_of_week INTEGER,
-  start_time TEXT,
-  end_time TEXT,
-  FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+  tenantId TEXT,
+  dayOfWeek INTEGER,
+  startTime TEXT,
+  endTime TEXT,
+  FOREIGN KEY (tenantId) REFERENCES tenants(id)
 );
 
 -- SPECIAL DATES
 CREATE TABLE IF NOT EXISTS special_dates (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  tenant_id TEXT,
-  date_iso TEXT,
+  tenantId TEXT,
+  dateIso TEXT,
   status TEXT,
   reason TEXT,
-  FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+  FOREIGN KEY (tenantId) REFERENCES tenants(id)
 );
 
 -- CATEGORIES
 CREATE TABLE IF NOT EXISTS categories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  tenant_id TEXT,
+  tenantId TEXT,
   name TEXT,
-  sort_order INTEGER,
-  is_visible INTEGER DEFAULT 1,
-  FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+  sortOrder INTEGER,
+  isVisible INTEGER DEFAULT 1,
+  FOREIGN KEY (tenantId) REFERENCES tenants(id)
 );
 
 -- MENU ITEMS
 CREATE TABLE IF NOT EXISTS menu_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  tenant_id TEXT,
-  category_id INTEGER,
+  tenantId TEXT,
+  categoryId INTEGER,
   name TEXT,
   description TEXT,
   price REAL,
-  image_cf_id TEXT,
-  is_available INTEGER DEFAULT 1,
-  dietary_tags TEXT,
-  dietary_tags_verified INTEGER DEFAULT 0,
-  sentiment_score REAL,
-  is_highlighted INTEGER DEFAULT 0,
-  embedding_version INTEGER,
-  FOREIGN KEY (tenant_id) REFERENCES tenants(id),
-  FOREIGN KEY (category_id) REFERENCES categories(id)
+  imageCfId TEXT,
+  isAvailable INTEGER DEFAULT 1,
+  dietaryTags TEXT,
+  dietaryTagsVerified INTEGER DEFAULT 0,
+  sentimentScore REAL,
+  isHighlighted INTEGER DEFAULT 0,
+  embeddingVersion INTEGER,
+  FOREIGN KEY (tenantId) REFERENCES tenants(id),
+  FOREIGN KEY (categoryId) REFERENCES categories(id)
 );
 
 -- SUBSCRIPTION EVENTS (for Stripe webhook tracking)
 CREATE TABLE IF NOT EXISTS subscription_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  tenant_id TEXT NOT NULL,
-  event_type TEXT NOT NULL,
-  stripe_event_id TEXT UNIQUE,
-  previous_status TEXT,
-  new_status TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+  tenantId TEXT NOT NULL,
+  eventType TEXT NOT NULL,
+  stripeEventId TEXT UNIQUE,
+  previousStatus TEXT,
+  newStatus TEXT,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (tenantId) REFERENCES tenants(id)
 );
 
 -- A2P 10DLC PROFILES (for Twilio SMS compliance)
 CREATE TABLE IF NOT EXISTS a2p_profiles (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  tenant_id TEXT UNIQUE NOT NULL,
-  business_profile_sid TEXT,
-  campaign_sid TEXT,
+  tenantId TEXT UNIQUE NOT NULL,
+  businessProfileSid TEXT,
+  campaignSid TEXT,
   status TEXT DEFAULT 'pending',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP,
-  FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP,
+  FOREIGN KEY (tenantId) REFERENCES tenants(id)
 );

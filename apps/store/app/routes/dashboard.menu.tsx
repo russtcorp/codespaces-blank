@@ -25,23 +25,23 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     .from(categories)
     .where(
       and(
-        eq(categories.tenant_id, user.tenantId),
-        eq(categories.is_visible, true)
+        eq(categories.tenantId, user.tenantId),
+        eq(categories.isVisible, true)
       )
     )
-    .orderBy(categories.sort_order)
+    .orderBy(categories.sortOrder)
     .all();
 
   const tenantMenuItems = await db
     .select()
     .from(menuItems)
-    .where(eq(menuItems.tenant_id, user.tenantId))
+    .where(eq(menuItems.tenantId, user.tenantId))
     .all();
 
   // Group items by category
   const categoriesWithItems = tenantCategories.map((category: any) => ({
     ...category,
-    items: tenantMenuItems.filter((item: any) => item.category_id === category.id),
+    items: tenantMenuItems.filter((item: any) => item.categoryId === category.id),
   }));
 
   return json({ 
@@ -81,10 +81,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const result = await db
           .insert(categories)
           .values({
-            tenant_id: user.tenantId,
+            tenantId: user.tenantId,
             name: data.name,
-            sort_order: data.sortOrder,
-            is_visible: true,
+            sortOrder: data.sortOrder,
+            isVisible: true,
           })
           .returning()
           .get();
@@ -95,11 +95,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
       case "update-category": {
         await db
           .update(categories)
-          .set({ name: data.name, sort_order: data.sortOrder })
+          .set({ name: data.name, sortOrder: data.sortOrder })
           .where(
             and(
               eq(categories.id, data.id),
-              eq(categories.tenant_id, user.tenantId)
+              eq(categories.tenantId, user.tenantId)
             )
           )
           .run();
@@ -110,11 +110,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
       case "delete-category": {
         await db
           .update(categories)
-          .set({ is_visible: false })
+          .set({ isVisible: false })
           .where(
             and(
               eq(categories.id, data.id),
-              eq(categories.tenant_id, user.tenantId)
+              eq(categories.tenantId, user.tenantId)
             )
           )
           .run();
@@ -126,18 +126,18 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const result = await db
           .insert(menuItems)
           .values({
-            tenant_id: user.tenantId,
-            category_id: data.categoryId,
+            tenantId: user.tenantId,
+            categoryId: data.categoryId,
             name: data.name,
             description: data.description || "",
             price: data.price,
-            image_cf_id: data.imageCfId || null,
-            is_available: true,
-            dietary_tags: null,
-            dietary_tags_verified: false,
-            sentiment_score: null,
-            is_highlighted: false,
-            embedding_version: 1,
+            imageCfId: data.imageCfId || null,
+            isAvailable: true,
+            dietaryTags: null,
+            dietaryTagsVerified: false,
+            sentimentScore: null,
+            isHighlighted: false,
+            embeddingVersion: 1,
           })
           .returning()
           .get();
@@ -152,14 +152,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
             name: data.name,
             description: data.description || "",
             price: data.price,
-            image_cf_id: data.imageCfId || null,
-            is_available: data.isAvailable,
-            embedding_version: db.sql`${menuItems.embedding_version} + 1`,
+            imageCfId: data.imageCfId || null,
+            isAvailable: data.isAvailable,
+            embeddingVersion: db.sql`${menuItems.embeddingVersion} + 1`,
           })
           .where(
             and(
               eq(menuItems.id, data.id),
-              eq(menuItems.tenant_id, user.tenantId)
+              eq(menuItems.tenantId, user.tenantId)
             )
           )
           .run();
@@ -173,7 +173,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
           .where(
             and(
               eq(menuItems.id, data.id),
-              eq(menuItems.tenant_id, user.tenantId)
+              eq(menuItems.tenantId, user.tenantId)
             )
           )
           .run();
@@ -188,11 +188,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
         for (const { id, sortOrder } of orderData) {
           await db
             .update(categories)
-            .set({ sort_order: sortOrder })
+            .set({ sortOrder: sortOrder })
             .where(
               and(
                 eq(categories.id, id),
-                eq(categories.tenant_id, user.tenantId)
+                eq(categories.tenantId, user.tenantId)
               )
             )
             .run();
@@ -204,11 +204,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
       case "move-item": {
         await db
           .update(menuItems)
-          .set({ category_id: data.newCategoryId })
+          .set({ categoryId: data.newCategoryId })
           .where(
             and(
               eq(menuItems.id, data.itemId),
-              eq(menuItems.tenant_id, user.tenantId)
+              eq(menuItems.tenantId, user.tenantId)
             )
           )
           .run();

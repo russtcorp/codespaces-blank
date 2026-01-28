@@ -1,14 +1,14 @@
 CREATE TABLE `social_posts` (
   `id` text PRIMARY KEY NOT NULL,
-  `tenant_id` text REFERENCES tenants(id),
+  `tenantId` text REFERENCES tenants(id),
   `platform` text NOT NULL,
-  `external_id` text NOT NULL,
+  `externalId` text NOT NULL,
   `caption` text,
-  `media_url` text,
+  `mediaUrl` text,
   `permalink` text,
-  `thumbnail_url` text,
-  `posted_at` text,
-  `created_at` text DEFAULT CURRENT_TIMESTAMP
+  `thumbnailUrl` text,
+  `postedAt` text,
+  `createdAt` text DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX `social_posts_tenant_idx` ON `social_posts` (`tenant_id`);
+CREATE INDEX `social_posts_tenant_idx` ON `social_posts` (`tenantId`);

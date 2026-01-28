@@ -60,7 +60,7 @@ async function serveDoomsdayFallback(
     let tenantSlug = "default";
     try {
       const mapping = await env.DB.prepare(
-        `SELECT t.slug FROM host_mapping hm JOIN tenants t ON hm.tenant_id = t.id WHERE hm.host = ?`
+        `SELECT t.slug FROM host_mapping hm JOIN tenants t ON hm.tenantId = t.id WHERE hm.host = ?`
       )
         .bind(hostname)
         .first();
