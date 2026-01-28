@@ -1,6 +1,16 @@
 import { Card } from "@diner-saas/ui/card";
 
-export function PopularItemsTable({ data }) {
+interface PopularItem {
+  id: number | string;
+  name: string;
+  views: number;
+}
+
+interface PopularItemsTableProps {
+  data: PopularItem[];
+}
+
+export function PopularItemsTable({ data }: PopularItemsTableProps) {
   return (
     <Card>
       <Card.Header>

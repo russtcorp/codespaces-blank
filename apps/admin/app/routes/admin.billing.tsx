@@ -25,7 +25,7 @@ export default function AdminBilling() {
       return data.subscriptions;
     },
     initialData: initialData.subscriptions,
-    refetchInterval: 60000, // Refetch every 60 seconds
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes to reduce Stripe API load
   });
 
   const errorMessage = initialData.error || (error as Error)?.message;

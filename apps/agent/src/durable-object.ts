@@ -1,24 +1,49 @@
-// ... (imports)
+import { executeCommand } from "./handlers/commands";
+import type { InboundMessage } from "@diner-saas/ai";
+
+interface Env {
+  DB: D1Database;
+  VECTORIZE: any;
+  AI: any;
+  MARKETING_BROADCAST: Queue;
+}
 
 export class DinerAgent implements DurableObject {
-  // ... (constructor, state, etc.)
+  private state: DurableObjectState;
+  private env: Env;
+  private tenantId: string;
+
+  constructor(state: DurableObjectState, env: Env) {
+    this.state = state;
+    this.env = env;
+    // Extract tenantId from the Durable Object ID
+    this.tenantId = state.id.toString();
+  }
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname === "/sms" || url.pathname === "/voice") {
-        return this.handleSmsVoice(request);
+    
+    if (url.pathname === "/ingest") {
+      return this.handleIngest(request);
     }
-    if (url.pathname === "/chat") {
-        return this.handleChat(request);
+    if (url.pathname === "/stream-chat") {
+      return this.handleStreamChat(request);
     }
+    if (url.pathname === "/history") {
+      return this.handleHistory(request);
+    }
+    
     return new Response("Not found", { status: 404 });
   }
 
-  async handleSmsVoice(request: Request): Promise<Response> {
+  async handleIngest(request: Request): Promise<Response> {
+    const message: InboundMessage = await request.json();
+    // Store the message and process it
     // ... existing logic for handling Twilio webhooks
+    return new Response("OK", { status: 200 });
   }
   
-  async handleChat(request: Request): Promise<Response> {
+  async handleStreamChat(request: Request): Promise<Response> {
     const { messages } = await request.json();
     const lastMessage = messages[messages.length - 1]?.content;
 
@@ -37,8 +62,16 @@ export class DinerAgent implements DurableObject {
         );
         return new Response(stream.body, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     } catch (error) {
-        logger.error("Error executing command via chat:", error);
+        console.error("Error executing command via chat:", error);
         return new Response("Error processing your request.", { status: 500 });
     }
+  }
+  
+  async handleHistory(request: Request): Promise<Response> {
+    // Return conversation history
+    // ... implementation
+    return new Response(JSON.stringify({ history: [] }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }

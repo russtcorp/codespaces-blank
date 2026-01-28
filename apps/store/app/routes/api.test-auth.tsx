@@ -8,7 +8,9 @@ import { User } from "~/services/auth.server";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const env = context.cloudflare.env as any;
-  if (env.ENVIRONMENT !== 'testing') {
+  // Use explicit environment variable for test auth
+  // Set TEST_AUTH_ENABLED="true" in .dev.vars for development/testing
+  if (env.TEST_AUTH_ENABLED !== "true") {
     return new Response("Not Found", { status: 404 });
   }
 

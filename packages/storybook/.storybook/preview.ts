@@ -1,5 +1,5 @@
 import type { Preview } from "@storybook/react";
-import "../../../apps/store/app/styles/tailwind.css"; // Reuse existing tailwind styles
+import "../../ui/src/styles.css"; // Use shared UI package styles instead of coupling to specific app
 
 const preview: Preview = {
   parameters: {
