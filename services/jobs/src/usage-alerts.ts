@@ -40,9 +40,9 @@ export async function handleUsageAlertsCron(
         const staleItemsResult = await db
           .prepare(
             `SELECT COUNT(*) as count FROM menu_items 
-             WHERE tenant_id = ? 
-             AND (updated_at IS NULL OR updated_at < ?)
-             AND is_available = 1`
+             WHERE tenantId = ? 
+             AND (updatedAt IS NULL OR updatedAt < ?)
+             AND isAvailable = 1`
           )
           .bind(tenant.id, staleDateStr)
           .first<{ count: number}>();
