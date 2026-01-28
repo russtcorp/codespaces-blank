@@ -112,8 +112,10 @@ export class DinerAgent extends Agent<Env> {
   }
 
   private async handleInbound(message: InboundMessage): Promise<void> {
+    // Critical section: Load state, append message, truncate, and save
+    // Only block concurrency for state reads/writes, not downstream I/O
     await this.state.blockConcurrencyWhile(async () => {
-      const state = await this.loadState();
+      const currentState = await this.loadState();
       const stored: ChatMessage = {
         id: message.id ?? crypto.randomUUID(),
         from: message.from,
@@ -150,12 +152,14 @@ export class DinerAgent extends Agent<Env> {
   }
 
   async startOtp(userId: string, ttlSeconds = 300): Promise<OtpRecord> {
-    const code = this.generateOtp();
-    const expiresAt = Date.now() + ttlSeconds * 1000;
-    const state = await this.loadState();
-    state.otp = { code, expiresAt, userId };
-    await this.saveState(state);
-    return { code, expiresAt };
+    return await this.state.blockConcurrencyWhile(async () => {
+      const code = this.generateOtp();
+      const expiresAt = Date.now() + ttlSeconds * 1000;
+      const state = await this.loadState();
+      state.otp = { code, expiresAt, userId };
+      await this.saveState(state);
+      return { code, expiresAt };
+    });
   }
 
   async verifyOtp(userId: string, code: string): Promise<boolean> {
