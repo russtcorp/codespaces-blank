@@ -5,7 +5,6 @@ import { Button } from "@diner-saas/ui/button";
 import { Input } from "@diner-saas/ui/input";
 import { Card } from "@diner-saas/ui/card";
 import { useRemixForm, getValidatedFormData, RemixFormProvider } from "remix-hook-form";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";

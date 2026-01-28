@@ -9,7 +9,6 @@ import {
   getSortedRowModel,
 } from "@tanstack/react-table";
 import { Button } from "./button";
-import { Input } from "./input";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface DataTableProps<TData, TValue> {

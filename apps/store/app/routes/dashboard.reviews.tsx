@@ -6,7 +6,6 @@ import { drizzle } from "drizzle-orm/d1";
 import { reviews } from "@diner-saas/db";
 import { Button } from "@diner-saas/ui/button";
 import { Card } from "@diner-saas/ui/card";
-import { Input } from "@diner-saas/ui/input";
 import { StarIcon, SparklesIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
@@ -69,6 +68,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
     // Call AI
     const reviewContent = formData.get("content") as string;
     if (!env.AI) return json({ error: "AI not available" }, { status: 500 });
+    
+    // Validate reviewId is a number
+    if (isNaN(reviewId)) {
+      return json({ error: "Invalid review ID" }, { status: 400 });
+    }
 
     try {
         const aiResponse = await env.AI.run("@cf/meta/llama-3-8b-instruct", {
@@ -79,7 +83,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
         });
         const draft = typeof aiResponse === 'string' ? aiResponse : aiResponse.response;
         
-        await db.update(reviews).set({ aiDraftResponse: draft, status: "drafted" }).where(eq(reviews.id, reviewId)).run();
+        // Add tenant isolation to prevent cross-tenant manipulation
+        await db.update(reviews)
+          .set({ aiDraftResponse: draft, status: "drafted" })
+          .where(and(eq(reviews.id, reviewId), eq(reviews.tenantId, user.tenantId)))
+          .run();
         return json({ success: true, draft });
     } catch (e) {
         return json({ error: "AI Generation failed" }, { status: 500 });

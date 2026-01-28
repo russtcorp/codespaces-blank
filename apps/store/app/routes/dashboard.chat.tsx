@@ -19,7 +19,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
   let initialMessages = [];
   try {
-    const res = await env.AGENT_DO.fetch(`https://agent.internal/history?tenantId=${user.tenantId}`);
+    // Get DO stub for this tenant
+    const agentId = env.AGENT_DO.idFromName(user.tenantId);
+    const agentStub = env.AGENT_DO.get(agentId);
+    const res = await agentStub.fetch(`https://agent.internal/history`);
     if (res.ok) {
         const history = await res.json();
         initialMessages = history.map((m: any) => ({
@@ -43,8 +46,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     const body = await request.json();
     
+    // Get DO stub for this tenant
+    const agentId = env.AGENT_DO.idFromName(user.tenantId);
+    const agentStub = env.AGENT_DO.get(agentId);
+    
     // Proxy to Agent Worker
-    const response = await env.AGENT_DO.fetch(`https://agent.internal/stream-chat`, {
+    const response = await agentStub.fetch(`https://agent.internal/stream-chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

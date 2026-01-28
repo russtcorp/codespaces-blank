@@ -64,7 +64,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
   }
 
   // Validate form data
-  const { errors, data, receivedValues } = await getValidatedFormData<any>(
+  const { errors, data } = await getValidatedFormData<any>(
     request,
     resolver
   );

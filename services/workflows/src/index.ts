@@ -9,7 +9,7 @@ const menuSchema = z.object({
   items: z.array(z.object({
     name: z.string(),
     description: z.string().optional(),
-    price: z.number(),
+    price: z.coerce.number(), // Use coerce to handle string inputs from LLM
     category: z.string()
   }))
 });
