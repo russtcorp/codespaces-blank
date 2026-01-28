@@ -1,7 +1,7 @@
 import { Card } from "@diner-saas/ui/card";
 import { ThumbsUp, MessageSquare } from "lucide-react";
 
-export function SocialEngagementStats({ data }) {
+export function SocialEngagementStats({ data }: { data: { likes?: number; comments?: number } }) {
   return (
     <Card>
       <Card.Header>
