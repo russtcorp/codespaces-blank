@@ -1,7 +1,7 @@
 import { Card } from "@diner-saas/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 
-const processDataForChart = (data) => {
+const processDataForChart = (data: { date: string; sentiment: 'positive' | 'neutral' | 'negative'; count: number }[]) => {
   const groupedData = data.reduce((acc, { date, sentiment, count }) => {
     if (!acc[date]) {
       acc[date] = { date, positive: 0, neutral: 0, negative: 0 };
