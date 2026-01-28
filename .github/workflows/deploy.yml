@@ -57,7 +57,7 @@ jobs:
           run_install: true
 
       - name: Security Audit
-        run: npm audit --audit-level=high || true
+        run: pnpm audit --audit-level=high || true
 
       - name: Type Check
         run: ./node_modules/.bin/tsc --noEmit
