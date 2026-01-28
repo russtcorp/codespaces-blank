@@ -5,10 +5,18 @@ import { SYSTEM_PROMPTS } from "@diner-saas/ai";
 import type { OtpRecord } from "./utils/twilio";
 import { handleInboundCommand } from "./handlers/commands";
 import type { InboundMessage, ChatMessage } from "@diner-saas/ai";
+import { drizzle } from "drizzle-orm/d1";
+import { eq } from "drizzle-orm";
+import * as schema from "@diner-saas/db/schema";
 
 interface StoredState {
   messages: ChatMessage[];
   otp?: OtpRecord & { userId: string };
+  tenantInfo?: {
+    businessName: string;
+    phonePublic: string;
+    cachedAt: number;
+  };
 }
 
 /**
@@ -82,11 +90,14 @@ export class DinerAgent extends Agent<Env> {
         });
       }
 
+      // Get dynamic tenant information for system prompt
+      const tenantInfo = await this.getTenantInfo();
+
       const workersAI = createWorkersAI({ binding: this.env.AI });
 
       const result = await streamText({
         model: workersAI("@cf/meta/llama-3-8b-instruct"),
-        system: SYSTEM_PROMPTS.dinerAgent("Your Diner", "555-0199"),
+        system: SYSTEM_PROMPTS.dinerAgent(tenantInfo.businessName, tenantInfo.phonePublic),
         messages,
         onFinish: async ({ text }) => {
           await this.saveMessage({
@@ -124,11 +135,11 @@ export class DinerAgent extends Agent<Env> {
         channel: message.channel ?? "sms",
       };
 
-      state.messages.push(stored);
-      if (state.messages.length > 50) state.messages = state.messages.slice(-50);
-      await this.saveState(state);
+      currentState.messages.push(stored);
+      if (currentState.messages.length > 50) currentState.messages = currentState.messages.slice(-50);
+      await this.saveState(currentState);
 
-      const otpResult = await this.handleOtpIfPresent(state, message);
+      const otpResult = await this.handleOtpIfPresent(currentState, message);
       if (otpResult.handled) return;
 
       const result = await handleInboundCommand(this.env, message);
@@ -140,9 +151,9 @@ export class DinerAgent extends Agent<Env> {
           timestamp: new Date().toISOString(),
           channel: "chat",
         };
-        state.messages.push(responseMsg);
-        if (state.messages.length > 50) state.messages = state.messages.slice(-50);
-        await this.saveState(state);
+        currentState.messages.push(responseMsg);
+        if (currentState.messages.length > 50) currentState.messages = currentState.messages.slice(-50);
+        await this.saveState(currentState);
 
         if (message.from && message.channel === "sms") {
           await this.sendSms(message.from, result.response);
@@ -237,6 +248,55 @@ export class DinerAgent extends Agent<Env> {
       await this.env.SMS_OUTBOUND.send({ to, body });
     } catch (err) {
       console.error("Failed to enqueue outbound SMS", err);
+    }
+  }
+
+  /**
+   * Get tenant information (business name and phone number) for system prompt.
+   * Caches the result in durable object storage to avoid repeated DB queries.
+   */
+  private async getTenantInfo(): Promise<{ businessName: string; phonePublic: string }> {
+    const CACHE_TTL_MS = 3600000; // 1 hour cache
+    const state = await this.loadState();
+    
+    // Return cached value if still fresh
+    if (state.tenantInfo && Date.now() - state.tenantInfo.cachedAt < CACHE_TTL_MS) {
+      return {
+        businessName: state.tenantInfo.businessName,
+        phonePublic: state.tenantInfo.phonePublic,
+      };
+    }
+
+    // Fetch fresh data from database
+    const tenantId = this.state.id.name; // Tenant ID is the Durable Object name
+    const db = drizzle(this.env.DB, { schema });
+    
+    try {
+      // Fetch tenant name
+      const tenant = await db.query.tenants.findFirst({
+        where: eq(schema.tenants.id, tenantId),
+      });
+
+      // Fetch business settings for phone number
+      const settings = await db.query.businessSettings.findFirst({
+        where: eq(schema.businessSettings.tenantId, tenantId),
+      });
+
+      const businessName = tenant?.businessName || "Your Diner";
+      const phonePublic = settings?.phonePublic || "555-0199";
+
+      // Cache the result
+      state.tenantInfo = {
+        businessName,
+        phonePublic,
+        cachedAt: Date.now(),
+      };
+      await this.saveState(state);
+
+      return { businessName, phonePublic };
+    } catch (err) {
+      console.error("Failed to fetch tenant info, using defaults", err);
+      return { businessName: "Your Diner", phonePublic: "555-0199" };
     }
   }
 }
