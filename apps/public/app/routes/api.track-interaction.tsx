@@ -23,7 +23,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }).run();
     return json({ success: true }, { status: 201 });
   } catch (error) {
-    console.error("Failed to track interaction:", error);
+    logger.error("Failed to track interaction:", error);
     return json({ error: "Could not track interaction" }, { status: 500 });
   }
 }
