@@ -38,6 +38,7 @@ interface MenuItem {
   price: number;
   imageCfId: string | null;
   isAvailable: boolean;
+  ingredients?: string;
 }
 
 interface Category {
@@ -182,7 +183,9 @@ export function VisualEditor({ categories: initialCategories, cloudflareImagesUr
     const formData = new FormData();
     formData.append("intent", "generate-description");
     formData.append("name", editingItem.name);
-    // If we had an ingredients field, we'd append it here
+    if (editingItem.ingredients) {
+      formData.append("ingredients", editingItem.ingredients);
+    }
     fetcher.submit(formData, { method: "post" });
   };
 
@@ -367,6 +370,18 @@ export function VisualEditor({ categories: initialCategories, cloudflareImagesUr
                   value={editingItem.name}
                   onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
                   className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="ingredients" className="text-right text-sm font-medium">
+                  Ingredients
+                </label>
+                <Input
+                  id="ingredients"
+                  value={editingItem.ingredients || ""}
+                  onChange={(e) => setEditingItem({ ...editingItem, ingredients: e.target.value })}
+                  className="col-span-3"
+                  placeholder="e.g., tomatoes, basil, mozzarella"
                 />
               </div>
               <div className="grid grid-cols-4 items-start gap-4">
