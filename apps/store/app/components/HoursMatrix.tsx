@@ -6,6 +6,18 @@ import { INTENTS } from "@diner-saas/db/intents";
 import * as Form from '@radix-ui/react-form';
 // ... other imports
 
+interface OperatingHour {
+  id?: number;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+}
+
+interface HoursMatrixProps {
+  initialHours: OperatingHour[];
+  emergencyCloseReason?: string | null;
+}
+
 export function HoursMatrix({ initialHours, emergencyCloseReason }: HoursMatrixProps) {
     const fetcher = useFetcher();
 
