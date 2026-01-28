@@ -22,7 +22,7 @@
     "@remix-run/cloudflare": "^2.15.1",
     "@remix-run/cloudflare-pages": "^2.15.1",
     "@remix-run/react": "^2.15.1",
-    "ai": "^5.0.52",
+    "ai": "^6.0.57",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
