@@ -11,13 +11,16 @@
   "dependencies": {
     "@diner-saas/config": "workspace:*",
     "@diner-saas/db": "workspace:*",
+    "@diner-saas/logger": "workspace:*",
     "@diner-saas/ui": "workspace:*",
     "@remix-run/cloudflare": "^2.15.1",
     "@remix-run/cloudflare-pages": "^2.15.1",
     "@remix-run/react": "^2.15.1",
+    "drizzle-orm": "^0.30.0",
     "isbot": "^4.4.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "stripe": "^20.2.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241218.0",

@@ -1,28 +1,37 @@
+import { Agent } from "agents";
+import { streamText } from "ai";
+import { createWorkersAI } from "workers-ai-provider";
+import { SYSTEM_PROMPTS } from "@diner-saas/ai";
 import type { OtpRecord } from "./utils/twilio";
 import { handleInboundCommand } from "./handlers/commands";
-
-interface ChatMessage {
-  id: string;
-  from: string;
-  body: string;
-  timestamp: string;
-  channel: "sms" | "voice" | "chat";
-}
+import type { InboundMessage, ChatMessage } from "@diner-saas/ai";
+import { drizzle } from "drizzle-orm/d1";
+import { eq } from "drizzle-orm";
+import * as schema from "@diner-saas/db/schema";
 
 interface StoredState {
   messages: ChatMessage[];
   otp?: OtpRecord & { userId: string };
+  tenantInfo?: {
+    businessName: string;
+    phonePublic: string;
+    cachedAt: number;
+  };
 }
 
 /**
  * DinerAgent Durable Object
  * Maintains per-tenant state (chat history, OTP challenges)
+ * Built using Cloudflare Agents SDK
  */
-export class DinerAgent implements DurableObject {
-  constructor(private state: DurableObjectState, private env: Env) {}
+export class DinerAgent extends Agent<Env> {
+  constructor(state: DurableObjectState, env: Env) {
+    super(state, env);
+  }
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
+
     if (url.pathname === "/health") {
       return new Response("OK", { status: 200 });
     }
@@ -51,6 +60,59 @@ export class DinerAgent implements DurableObject {
       });
     }
 
+    if (url.pathname === "/history" && request.method === "GET") {
+      const state = await this.loadState();
+      return new Response(JSON.stringify(state.messages), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (url.pathname === "/chat" && request.method === "POST") {
+      const body = (await request.json()) as InboundMessage;
+      body.channel = body.channel || "chat";
+      await this.handleInbound(body);
+      return new Response("ok", { status: 200 });
+    }
+
+    if (url.pathname === "/stream-chat" && request.method === "POST") {
+      const { messages } = (await request.json()) as { messages: any[] };
+
+      // Save user message to history
+      const lastUserMsg = messages[messages.length - 1];
+      if (lastUserMsg && lastUserMsg.role === "user") {
+        await this.saveMessage({
+          id: crypto.randomUUID(),
+          from: "dashboard",
+          body: lastUserMsg.content,
+          channel: "chat",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // Get dynamic tenant information for system prompt
+      const tenantInfo = await this.getTenantInfo();
+
+      const workersAI = createWorkersAI({ binding: this.env.AI });
+
+      const result = await streamText({
+        model: workersAI("@cf/meta/llama-3-8b-instruct"),
+        system: SYSTEM_PROMPTS.dinerAgent(tenantInfo.businessName, tenantInfo.phonePublic),
+        messages,
+        onFinish: async ({ text }) => {
+          await this.saveMessage({
+            id: crypto.randomUUID(),
+            from: "agent",
+            body: text,
+            channel: "chat",
+            timestamp: new Date().toISOString(),
+          });
+        },
+      });
+
+      return result.toDataStreamResponse();
+    }
+
     return new Response("Not Found", { status: 404 });
   }
 
@@ -74,26 +136,30 @@ export class DinerAgent implements DurableObject {
       };
 
       currentState.messages.push(stored);
-      
-      // Performance: Truncate history to last 50 messages
-      if (currentState.messages.length > 50) {
-        currentState.messages = currentState.messages.slice(-50);
-      }
-      
+      if (currentState.messages.length > 50) currentState.messages = currentState.messages.slice(-50);
       await this.saveState(currentState);
+
+      const otpResult = await this.handleOtpIfPresent(currentState, message);
+      if (otpResult.handled) return;
+
+      const result = await handleInboundCommand(this.env, message);
+      if (result.response) {
+        const responseMsg: ChatMessage = {
+          id: crypto.randomUUID(),
+          from: "agent",
+          body: result.response,
+          timestamp: new Date().toISOString(),
+          channel: "chat",
+        };
+        currentState.messages.push(responseMsg);
+        if (currentState.messages.length > 50) currentState.messages = currentState.messages.slice(-50);
+        await this.saveState(currentState);
+
+        if (message.from && message.channel === "sms") {
+          await this.sendSms(message.from, result.response);
+        }
+      }
     });
-
-    // Process OTP verification first (outside message storage critical section)
-    // OTP state mutations use their own critical sections for atomicity
-    const otpResult = await this.handleOtpIfPresent(message);
-    if (otpResult.handled) return;
-
-    // Handle commands / intent via shared handler (outside critical section)
-    // This unifies logic with the rest of the system
-    const result = await handleInboundCommand(this.env, message);
-    if (result.response && message.from) {
-      await this.sendSms(message.from, result.response);
-    }
   }
 
   async startOtp(userId: string, ttlSeconds = 300): Promise<OtpRecord> {
@@ -108,17 +174,14 @@ export class DinerAgent implements DurableObject {
   }
 
   async verifyOtp(userId: string, code: string): Promise<boolean> {
-    return await this.state.blockConcurrencyWhile(async () => {
-      const state = await this.loadState();
-      if (!state.otp) return false;
-      if (state.otp.userId !== userId) return false;
-      if (Date.now() > state.otp.expiresAt) return false;
-      if (state.otp.code !== code) return false;
-      // Clear after verification
-      state.otp = undefined;
-      await this.saveState(state);
-      return true;
-    });
+    const state = await this.loadState();
+    if (!state.otp) return false;
+    if (state.otp.userId !== userId) return false;
+    if (Date.now() > state.otp.expiresAt) return false;
+    if (state.otp.code !== code) return false;
+    state.otp = undefined;
+    await this.saveState(state);
+    return true;
   }
 
   private generateOtp(length = 6): string {
@@ -142,60 +205,41 @@ export class DinerAgent implements DurableObject {
     await this.state.storage.put("state", state);
   }
 
-  private async handleOtpIfPresent(message: InboundMessage) {
-    const body = (message.body || "").trim();
-    
-    // Check and mutate OTP state in its own critical section
-    const otpHandled = await this.state.blockConcurrencyWhile(async () => {
+  private async saveMessage(msg: ChatMessage) {
+    await this.state.blockConcurrencyWhile(async () => {
       const state = await this.loadState();
-      
-      if (!state.otp) return { handled: false, response: "" };
-      
-      // Check if the message looks like an OTP code (digits only)
-      const looksLikeOtp = /^\d+$/.test(body);
-      
-      // Check if OTP expired
-      if (Date.now() > state.otp.expiresAt) {
-        state.otp = undefined;
-        await this.saveState(state);
-        // Only notify if user is trying to enter a code
-        if (looksLikeOtp) {
-          return { 
-            handled: true, 
-            response: "Your previous verification code expired. Reply with the new code when prompted." 
-          };
-        }
-        return { handled: false, response: "" };  // Allow non-OTP messages to be processed
-      }
-      
-      // Only handle if the message looks like an OTP code
-      if (!looksLikeOtp) {
-        return { handled: false, response: "" };  // Not an OTP attempt, process normally
-      }
-      
-      // Verify the OTP code
-      if (body === state.otp.code && state.otp.userId === message.from) {
-        state.otp = undefined;
-        await this.saveState(state);
-        return { 
-          handled: true, 
-          response: "Verification successful. Proceeding with your request." 
-        };
-      }
-      
-      // Code didn't match
-      return { 
-        handled: true, 
-        response: "That code didn't match. Please re-enter the verification code we sent." 
-      };
+      state.messages.push(msg);
+      if (state.messages.length > 50) state.messages = state.messages.slice(-50);
+      await this.saveState(state);
     });
-    
-    // Send SMS response outside the critical section
-    if (otpHandled.handled && otpHandled.response) {
-      await this.sendSms(message.from, otpHandled.response);
+  }
+
+  private async handleOtpIfPresent(state: StoredState, message: InboundMessage) {
+    const body = (message.body || "").trim();
+    if (!state.otp) return { handled: false };
+    if (Date.now() > state.otp.expiresAt) {
+      state.otp = undefined;
+      await this.saveState(state);
+      await this.sendSms(
+        message.from,
+        "Your previous verification code expired. Reply with the new code when prompted."
+      );
+      return { handled: true };
     }
-    
-    return { handled: otpHandled.handled };
+    if (body === state.otp.code && state.otp.userId === message.from) {
+      state.otp = undefined;
+      await this.saveState(state);
+      await this.sendSms(
+        message.from,
+        "Verification successful. Proceeding with your request."
+      );
+      return { handled: true };
+    }
+    await this.sendSms(
+      message.from,
+      "That code didn’t match. Please re-enter the verification code we sent."
+    );
+    return { handled: true };
   }
 
   private async sendSms(to: string, body: string) {
@@ -206,15 +250,61 @@ export class DinerAgent implements DurableObject {
       console.error("Failed to enqueue outbound SMS", err);
     }
   }
-}
 
-export interface InboundMessage {
-  id?: string;
-  from: string;
-  to?: string;
-  tenantId?: string;
-  body?: string;
-  channel?: "sms" | "voice" | "chat";
+  /**
+   * Get tenant information (business name and phone number) for system prompt.
+   * Caches the result in durable object storage to avoid repeated DB queries.
+   */
+  private async getTenantInfo(): Promise<{ businessName: string; phonePublic: string }> {
+    const CACHE_TTL_MS = 3600000; // 1 hour cache
+
+    return await this.state.blockConcurrencyWhile(async () => {
+      const state = await this.loadState();
+      
+      // Return cached value if still fresh
+      if (state.tenantInfo && Date.now() - state.tenantInfo.cachedAt < CACHE_TTL_MS) {
+        return {
+          businessName: state.tenantInfo.businessName,
+          phonePublic: state.tenantInfo.phonePublic,
+        };
+      }
+
+      // Fetch fresh data from database
+      const tenantId = this.state.id.name; // Tenant ID is the Durable Object name
+      const db = drizzle(this.env.DB, { schema });
+      
+      let businessName = "Your Diner";
+      let phonePublic = "555-0199";
+
+      try {
+        // Fetch tenant name
+        const tenant = await db.query.tenants.findFirst({
+          where: eq(schema.tenants.id, tenantId),
+        });
+
+        // Fetch business settings for phone number
+        const settings = await db.query.businessSettings.findFirst({
+          where: eq(schema.businessSettings.tenantId, tenantId),
+        });
+
+        businessName = tenant?.businessName || businessName;
+        phonePublic = settings?.phonePublic || phonePublic;
+      } catch (err) {
+        console.error("Failed to fetch tenant info, using defaults", err);
+        // Continue with defaults - they will be cached below
+      }
+
+      // Cache the result (including defaults if fetch failed)
+      state.tenantInfo = {
+        businessName,
+        phonePublic,
+        cachedAt: Date.now(),
+      };
+      await this.saveState(state);
+
+      return { businessName, phonePublic };
+    });
+  }
 }
 
 export interface Env {

@@ -1,7 +1,9 @@
 import { verifyTwilioSignature, parseFormBody } from "./utils/twilio";
-import { InboundMessage, DinerAgent } from "./durable-object";
+import { DinerAgent } from "./durable-object";
+import type { InboundMessage } from "@diner-saas/ai";
 import { handleVoice as handleVoiceAI } from "./handlers/voice";
 import { handleVision } from "./handlers/vision";
+import { resolveTenantByPhone } from "@diner-saas/db";
 
 export { DinerAgent };
 
@@ -15,6 +17,8 @@ export interface Env {
   AI_MODEL_EMBEDDING: string;
   VECTORIZE: any;
   TWILIO_AUTH_TOKEN: string;
+  DB: D1Database; // Added for tenant resolution
+  KV: KVNamespace; // Added for tenant resolution cache
 }
 
 export default {
@@ -41,6 +45,56 @@ export default {
       return handleVision(request, env);
     }
 
+    // Agent History API (for Dashboard)
+    if (url.pathname === "/api/history" && request.method === "GET") {
+      const tenantId = url.searchParams.get("tenantId");
+      if (!tenantId) return new Response("Missing tenantId", { status: 400 });
+      const id = env.AGENT_DO.idFromName(tenantId);
+      const stub = env.AGENT_DO.get(id);
+      return stub.fetch("https://agent.internal/history");
+    }
+
+    // Agent Chat API (for Dashboard)
+    if (url.pathname === "/api/chat" && request.method === "POST") {
+      const body = await request.json() as any;
+      const tenantId = body.tenantId;
+      if (!tenantId) {
+        return new Response("Missing tenantId", { status: 400 });
+      }
+      
+      const id = env.AGENT_DO.idFromName(tenantId);
+      const stub = env.AGENT_DO.get(id);
+      
+      return stub.fetch("https://agent.internal/stream-chat", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+    }
+
+    // Web Voice Transcription (Dashboard)
+    if (url.pathname === "/api/voice/transcribe" && request.method === "POST") {
+      const formData = await request.formData();
+      const audioFile = formData.get("file");
+
+      if (!audioFile) {
+        return new Response("No audio file provided", { status: 400 });
+      }
+
+      try {
+        const blob = await (audioFile as File).arrayBuffer();
+        const input = {
+          audio: [...new Uint8Array(blob)],
+        };
+        const response = await env.AI.run("@cf/openai/whisper", input);
+        return new Response(JSON.stringify({ text: response.text }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (e) {
+        console.error("Transcription failed", e);
+        return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+      }
+    }
+
     return new Response("Not Found", { status: 404 });
   },
 
@@ -65,10 +119,13 @@ async function handleSms(request: Request, env: Env): Promise<Response> {
     return new Response("Invalid signature", { status: 403 });
   }
 
+  // Resolve tenant from the "To" phone number (the diner's Twilio number)
+  const tenantId = await resolveTenantByPhone(params.To || "", env) || "default-tenant";
+
   const payload: InboundMessage = {
     from: params.From || "",
     to: params.To || "",
-    tenantId: params.To || "default-tenant",
+    tenantId,
     body: params.Body || "",
     channel: "sms",
   };

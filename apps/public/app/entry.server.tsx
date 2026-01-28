@@ -5,7 +5,6 @@
  * serving a static snapshot from R2 (Doomsday Protocol).
  */
 
-import { isbot } from "isbot";
 import type { AppLoadContext, EntryContext } from "@remix-run/cloudflare";
 import { RemixServer } from "@remix-run/react";
 import { renderToReadableStream } from "react-dom/server";
@@ -17,13 +16,18 @@ export default async function handleRequest(
   remixContext: EntryContext,
   loadContext: AppLoadContext
 ) {
-  if (isbot(request.headers.get("user-agent"))) {
-    return new Response("Please don't crawl us", { status: 403 });
+  // WAF Aggregator Shield: Block known third-party scrapers
+  const userAgent = request.headers.get("user-agent") || "";
+  const blockedAgents = ["DoorDash", "UberEats", "GrubHub", "Postmates", "Seamless"];
+  
+  if (blockedAgents.some(agent => userAgent.includes(agent))) {
+    return new Response("Access Denied: Third-party scraping is prohibited.", { status: 403 });
   }
 
   try {
     const body = await renderToReadableStream(
       <RemixServer context={remixContext} url={request.url} />,
+// ... (rest of file)
       {
         onError(error) {
           console.error("[SSR] Render error:", error);
@@ -56,7 +60,7 @@ async function serveDoomsdayFallback(
     let tenantSlug = "default";
     try {
       const mapping = await env.DB.prepare(
-        `SELECT t.slug FROM host_mapping hm JOIN tenants t ON hm.tenant_id = t.id WHERE hm.host = ?`
+        `SELECT t.slug FROM host_mapping hm JOIN tenants t ON hm.tenantId = t.id WHERE hm.host = ?`
       )
         .bind(hostname)
         .first();

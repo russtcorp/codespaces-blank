@@ -30,7 +30,15 @@ export async function getSession(request: Request, env: any) {
 
 export async function commitSession(session: any, env: any) {
   const storage = getSessionStorage(env);
-  return storage.commitSession(session);
+  
+  // Rolling session: Reset expiry on every commit
+  // This keeps the user logged in as long as they are active
+  const maxAge = 60 * 60 * 24 * 7; // 7 days
+  session.set("expires", Date.now() + maxAge * 1000);
+  
+  return storage.commitSession(session, {
+    maxAge: maxAge,
+  });
 }
 
 export async function destroySession(session: any, env: any) {

@@ -5,6 +5,9 @@ import { eq, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { categories, menuItems } from "@diner-saas/db";
 import { VisualEditor } from "~/components/VisualEditor";
+import { getValidatedFormData } from "remix-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { menuActionSchema } from "~/schemas";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const env = (context as any).cloudflare?.env;
@@ -22,23 +25,23 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     .from(categories)
     .where(
       and(
-        eq(categories.tenant_id, user.tenantId),
-        eq(categories.is_visible, true)
+        eq(categories.tenantId, user.tenantId),
+        eq(categories.isVisible, true)
       )
     )
-    .orderBy(categories.sort_order)
+    .orderBy(categories.sortOrder)
     .all();
 
   const tenantMenuItems = await db
     .select()
     .from(menuItems)
-    .where(eq(menuItems.tenant_id, user.tenantId))
+    .where(eq(menuItems.tenantId, user.tenantId))
     .all();
 
   // Group items by category
   const categoriesWithItems = tenantCategories.map((category: any) => ({
     ...category,
-    items: tenantMenuItems.filter((item: any) => item.category_id === category.id),
+    items: tenantMenuItems.filter((item: any) => item.categoryId === category.id),
   }));
 
   return json({ 
@@ -47,6 +50,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     cloudflareImagesUrl: env?.CLOUDFLARE_IMAGES_URL || "",
   });
 }
+
+const resolver = zodResolver(menuActionSchema);
 
 export async function action({ request, context }: ActionFunctionArgs) {
   const env = (context as any).cloudflare?.env;
@@ -58,22 +63,28 @@ export async function action({ request, context }: ActionFunctionArgs) {
     throw new Response("Unauthorized", { status: 401 });
   }
 
-  const formData = await request.formData();
-  const intent = formData.get("intent");
+  // Validate form data
+  const { errors, data } = await getValidatedFormData<any>(
+    request,
+    resolver
+  );
+
+  if (errors) {
+    return json({ error: "Validation failed", errors }, { status: 400 });
+  }
+
+  const intent = data.intent;
 
   try {
     switch (intent) {
       case "create-category": {
-        const name = formData.get("name") as string;
-        const sortOrder = parseInt(formData.get("sortOrder") as string) || 0;
-
         const result = await db
           .insert(categories)
           .values({
-            tenant_id: user.tenantId,
-            name,
-            sort_order: sortOrder,
-            is_visible: true,
+            tenantId: user.tenantId,
+            name: data.name,
+            sortOrder: data.sortOrder,
+            isVisible: true,
           })
           .returning()
           .get();
@@ -82,17 +93,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
       }
 
       case "update-category": {
-        const id = parseInt(formData.get("id") as string);
-        const name = formData.get("name") as string;
-        const sortOrder = parseInt(formData.get("sortOrder") as string);
-
         await db
           .update(categories)
-          .set({ name, sort_order: sortOrder })
+          .set({ name: data.name, sortOrder: data.sortOrder })
           .where(
             and(
-              eq(categories.id, id),
-              eq(categories.tenant_id, user.tenantId)
+              eq(categories.id, data.id),
+              eq(categories.tenantId, user.tenantId)
             )
           )
           .run();
@@ -101,15 +108,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
       }
 
       case "delete-category": {
-        const id = parseInt(formData.get("id") as string);
-
         await db
           .update(categories)
-          .set({ is_visible: false })
+          .set({ isVisible: false })
           .where(
             and(
-              eq(categories.id, id),
-              eq(categories.tenant_id, user.tenantId)
+              eq(categories.id, data.id),
+              eq(categories.tenantId, user.tenantId)
             )
           )
           .run();
@@ -118,27 +123,21 @@ export async function action({ request, context }: ActionFunctionArgs) {
       }
 
       case "create-item": {
-        const categoryId = parseInt(formData.get("categoryId") as string);
-        const name = formData.get("name") as string;
-        const description = formData.get("description") as string;
-        const price = parseFloat(formData.get("price") as string);
-        const imageCfId = formData.get("imageCfId") as string || null;
-
         const result = await db
           .insert(menuItems)
           .values({
-            tenant_id: user.tenantId,
-            category_id: categoryId,
-            name,
-            description,
-            price,
-            image_cf_id: imageCfId,
-            is_available: true,
-            dietary_tags: null,
-            dietary_tags_verified: false,
-            sentiment_score: null,
-            is_highlighted: false,
-            embedding_version: 1,
+            tenantId: user.tenantId,
+            categoryId: data.categoryId,
+            name: data.name,
+            description: data.description || "",
+            price: data.price,
+            imageCfId: data.imageCfId || null,
+            isAvailable: true,
+            dietaryTags: null,
+            dietaryTagsVerified: false,
+            sentimentScore: null,
+            isHighlighted: false,
+            embeddingVersion: 1,
           })
           .returning()
           .get();
@@ -147,27 +146,20 @@ export async function action({ request, context }: ActionFunctionArgs) {
       }
 
       case "update-item": {
-        const id = parseInt(formData.get("id") as string);
-        const name = formData.get("name") as string;
-        const description = formData.get("description") as string;
-        const price = parseFloat(formData.get("price") as string);
-        const imageCfId = formData.get("imageCfId") as string || null;
-        const isAvailable = formData.get("isAvailable") === "true";
-
         await db
           .update(menuItems)
           .set({
-            name,
-            description,
-            price,
-            image_cf_id: imageCfId,
-            is_available: isAvailable,
-            embedding_version: db.sql`${menuItems.embedding_version} + 1`,
+            name: data.name,
+            description: data.description || "",
+            price: data.price,
+            imageCfId: data.imageCfId || null,
+            isAvailable: data.isAvailable,
+            embeddingVersion: db.sql`${menuItems.embeddingVersion} + 1`,
           })
           .where(
             and(
-              eq(menuItems.id, id),
-              eq(menuItems.tenant_id, user.tenantId)
+              eq(menuItems.id, data.id),
+              eq(menuItems.tenantId, user.tenantId)
             )
           )
           .run();
@@ -176,14 +168,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
       }
 
       case "delete-item": {
-        const id = parseInt(formData.get("id") as string);
-
         await db
           .delete(menuItems)
           .where(
             and(
-              eq(menuItems.id, id),
-              eq(menuItems.tenant_id, user.tenantId)
+              eq(menuItems.id, data.id),
+              eq(menuItems.tenantId, user.tenantId)
             )
           )
           .run();
@@ -192,17 +182,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
       }
 
       case "reorder-categories": {
-        const orderData = JSON.parse(formData.get("order") as string);
+        const orderData = JSON.parse(data.order);
         
         // Update sort order for each category
         for (const { id, sortOrder } of orderData) {
           await db
             .update(categories)
-            .set({ sort_order: sortOrder })
+            .set({ sortOrder: sortOrder })
             .where(
               and(
                 eq(categories.id, id),
-                eq(categories.tenant_id, user.tenantId)
+                eq(categories.tenantId, user.tenantId)
               )
             )
             .run();
@@ -212,16 +202,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
       }
 
       case "move-item": {
-        const itemId = parseInt(formData.get("itemId") as string);
-        const newCategoryId = parseInt(formData.get("newCategoryId") as string);
-
         await db
           .update(menuItems)
-          .set({ category_id: newCategoryId })
+          .set({ categoryId: data.newCategoryId })
           .where(
             and(
-              eq(menuItems.id, itemId),
-              eq(menuItems.tenant_id, user.tenantId)
+              eq(menuItems.id, data.itemId),
+              eq(menuItems.tenantId, user.tenantId)
             )
           )
           .run();
@@ -255,6 +242,40 @@ export async function action({ request, context }: ActionFunctionArgs) {
           uploadUrl: data.result.uploadURL,
           imageId: data.result.id,
         });
+      }
+
+      case "generate-description": {
+        // Use Workers AI to generate description
+        if (!env.AI) {
+          return json({ error: "AI binding not found" }, { status: 500 });
+        }
+
+        // We can import prompts from @diner-saas/ai if we had the package built, 
+        // but for now we'll inline the simple prompt logic or assume the package is available.
+        // The package.json analysis showed @diner-saas/ai is a dependency.
+        
+        const systemPrompt = `Generate an appetizing, concise menu item description (2-3 sentences max). 
+Focus on key ingredients, preparation method, and what makes it special. 
+Use vivid but professional language. Do not include price or availability.`;
+
+        const userPrompt = `Item Name: ${data.name}\nIngredients/Notes: ${data.ingredients || "None"}`;
+
+        try {
+            const response = await env.AI.run("@cf/meta/llama-3-8b-instruct", {
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt }
+                ]
+            });
+            
+            // Handle different AI response formats (stream vs string vs object)
+            // Workers AI usually returns { response: string } for non-streaming
+            const description = typeof response === 'string' ? response : response.response;
+            return json({ success: true, description });
+        } catch (err: any) {
+            console.error("AI Error", err);
+            return json({ error: "Failed to generate description" }, { status: 500 });
+        }
       }
 
       default:
