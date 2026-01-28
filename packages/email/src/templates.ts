@@ -5,14 +5,26 @@ export interface EmailData {
   html: string;
 }
 
+// HTML escape function to prevent XSS in email templates
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, m => map[m]);
+}
+
 export const templates = {
   newReview: (tenantName: string, reviewerName: string, rating: number): EmailData => ({
     to: "", // This will be set by the caller
     subject: `You've received a new ${rating}-star review!`,
     html: `
       <h1>New Customer Review</h1>
-      <p>Hi ${tenantName},</p>
-      <p>You have a new review from <strong>${reviewerName}</strong>.</p>
+      <p>Hi ${escapeHtml(tenantName)},</p>
+      <p>You have a new review from <strong>${escapeHtml(reviewerName)}</strong>.</p>
       <p>They gave you a rating of ${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}.</p>
       <p>Log in to your dashboard to read the review and post a response.</p>
       <br/>
@@ -26,8 +38,8 @@ export const templates = {
     subject: "Your response has been posted",
     html: `
       <h1>Response Posted</h1>
-      <p>Hi ${tenantName},</p>
-      <p>Your response to the review from <strong>${reviewerName}</strong> has been successfully posted.</p>
+      <p>Hi ${escapeHtml(tenantName)},</p>
+      <p>Your response to the review from <strong>${escapeHtml(reviewerName)}</strong> has been successfully posted.</p>
       <br/>
       <p>Regards,</p>
       <p>The Diner SaaS Team</p>
@@ -39,8 +51,8 @@ export const templates = {
     subject: "Your subscription payment was successful",
     html: `
       <h1>Payment Confirmation</h1>
-      <p>Hi ${tenantName},</p>
-      <p>Thank you for your payment of <strong>${amount}</strong>. Your subscription is active.</p>
+      <p>Hi ${escapeHtml(tenantName)},</p>
+      <p>Thank you for your payment of <strong>${escapeHtml(amount)}</strong>. Your subscription is active.</p>
       <br/>
       <p>Regards,</p>
       <p>The Diner SaaS Team</p>
@@ -52,7 +64,7 @@ export const templates = {
     subject: "Your subscription has been cancelled",
     html: `
       <h1>Subscription Cancelled</h1>
-      <p>Hi ${tenantName},</p>
+      <p>Hi ${escapeHtml(tenantName)},</p>
       <p>Your subscription has been successfully cancelled. We're sorry to see you go.</p>
       <br/>
       <p>Regards,</p>

@@ -4,14 +4,21 @@ import { reviews, tenants } from "@diner-saas/db";
 import { eq } from "drizzle-orm";
 
 // This is a simulated webhook endpoint to demonstrate receiving a new review.
-// In a real-world scenario, this would be protected and called by a service like Google.
+// WARNING: In production, this endpoint MUST implement authentication/signature verification.
+// For example, verify X-Webhook-Signature header or implement shared secret validation.
 export async function action({ request, context }: ActionFunctionArgs) {
   const env = context.cloudflare.env as any;
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  // WARNING: In production, you MUST validate the authenticity of this request.
+  // TODO: CRITICAL - Implement webhook signature verification before production
+  // Example for Google/Twilio/Stripe:
+  // const signature = request.headers.get('X-Webhook-Signature');
+  // if (!verifySignature(signature, await request.text(), env.WEBHOOK_SECRET)) {
+  //   return json({ error: "Unauthorized" }, { status: 401 });
+  // }
+
   const { tenantId, reviewerName, rating, content } = await request.json();
   if (!tenantId || !reviewerName || !rating || !content) {
     return json({ error: "Missing required fields" }, { status: 400 });
@@ -30,7 +37,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }).run();
 
     // 2. Get tenant owner's email for notification
-    const tenant = await db.select({ ownerEmail: tenants.ownerEmail, businessName: tenants.businessName }).from(tenants).where(eq(tenants.id, tenantId)).get();
+    const tenant = await db.select({ ownerEmail: tenants.emailAlias, businessName: tenants.businessName }).from(tenants).where(eq(tenants.id, tenantId)).get();
     if (!tenant) {
       return json({ error: "Tenant not found"}, { status: 404 });
     }

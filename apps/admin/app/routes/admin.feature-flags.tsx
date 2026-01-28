@@ -23,11 +23,22 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export async function action({ request, context }: ActionFunctionArgs) {
     const formData = await request.formData();
-    const tenantId = formData.get('tenantId') as string;
-    const flagName = formData.get('flagName') as string;
-    const isEnabled = formData.get('isEnabled') === 'true';
+    const tenantId = formData.get('tenantId');
+    const flagName = formData.get('flagName');
+    const isEnabled = formData.get('isEnabled');
+    
+    // Validate form data
+    if (!tenantId || typeof tenantId !== 'string') {
+      return json({ error: 'Invalid tenant ID' }, { status: 400 });
+    }
+    if (!flagName || typeof flagName !== 'string') {
+      return json({ error: 'Invalid flag name' }, { status: 400 });
+    }
+    if (isEnabled !== 'true' && isEnabled !== 'false') {
+      return json({ error: 'Invalid enabled value' }, { status: 400 });
+    }
 
-    await setFeatureFlag(context.cloudflare.env.FEATURE_FLAGS, tenantId, flagName, !isEnabled);
+    await setFeatureFlag(context.cloudflare.env.FEATURE_FLAGS, tenantId, flagName, isEnabled !== 'true');
     return redirect('/admin/feature-flags');
 }
 

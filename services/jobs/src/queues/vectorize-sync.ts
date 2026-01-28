@@ -6,6 +6,34 @@ import { getAIProvider } from "@diner-saas/ai/src/provider";
 import { z } from 'zod';
 // ... (other imports)
 
+// Define the message type for vectorize sync queue
+export interface VectorizeSyncMessage {
+  type: 'sync-item' | 'delete-item';
+  tenantId: string;
+  itemId: number;
+  text?: string;
+}
+
+// Define schema for dietary tags
+const dietaryTagsSchema = z.object({
+  tags: z.array(z.enum([
+    'vegetarian',
+    'vegan',
+    'gluten-free',
+    'dairy-free',
+    'nut-free',
+    'halal',
+    'kosher',
+    'organic',
+    'spicy',
+    'contains-nuts',
+    'contains-dairy',
+    'contains-gluten',
+    'contains-shellfish',
+    'contains-eggs'
+  ])),
+});
+
 export async function handleVectorizeSync(
   batch: MessageBatch<VectorizeSyncMessage>,
   env: Env
