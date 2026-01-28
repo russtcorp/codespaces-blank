@@ -16,8 +16,8 @@ export function PopularItemsTable({ data }) {
             </tr>
           </thead>
           <tbody>
-            {data.map((item, index) => (
-              <tr key={index} className="border-b">
+            {data.map((item) => (
+              <tr key={item.id} className="border-b">
                 <td className="py-2">{item.name}</td>
                 <td className="text-right py-2">{item.views}</td>
               </tr>
