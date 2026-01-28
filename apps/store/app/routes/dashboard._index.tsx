@@ -1,27 +1,32 @@
-import { json, type LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { json, redirect, type LoaderFunctionArgs } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
 import { getAuthenticator } from "~/services/auth.server";
+import { drizzle } from "drizzle-orm/d1";
+import { reviews, menuItemInteractions } from "@diner-saas/db";
+import { and, eq, sql, count } from "drizzle-orm";
 import { Card } from "@diner-saas/ui/card";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-  const env = (context as any).cloudflare?.env;
-  const authenticator = getAuthenticator(env);
+  const authenticator = getAuthenticator(context.cloudflare.env as any);
   const user = await authenticator.isAuthenticated(request);
-  
-  if (!user) {
-    throw new Response("Unauthorized", { status: 401 });
-  }
+  if (!user) return redirect("/login");
 
-  // TODO: Fetch analytics from Workers Analytics Engine
-  // For now, return mock data
-  const stats = {
-    totalViews: 1234,
-    totalClicks: 567,
-    callClicks: 89,
-    directionsClicks: 234,
+  const db = drizzle(context.cloudflare.env.DB);
+
+  // Fetch analytics stats
+  const [positiveReviews, negativeReviews, totalViews] = await Promise.all([
+    db.select({ value: count() }).from(reviews).where(and(eq(reviews.tenantId, user.tenantId), eq(reviews.sentiment, 'positive'))).get(),
+    db.select({ value: count() }).from(reviews).where(and(eq(reviews.tenantId, user.tenantId), eq(reviews.sentiment, 'negative'))).get(),
+    db.select({ value: count() }).from(menuItemInteractions).where(eq(menuItemInteractions.tenantId, user.tenantId)).get(),
+  ]);
+
+  const analytics = {
+    positiveReviews: positiveReviews?.value || 0,
+    negativeReviews: negativeReviews?.value || 0,
+    totalViews: totalViews?.value || 0,
   };
-
-  return json({ stats, user });
+  
+  return json({ user, analytics });
 }
 
 export default function DashboardIndex() {

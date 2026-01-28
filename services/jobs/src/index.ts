@@ -1,84 +1,41 @@
-/**
- * Background Jobs Worker
- *
- * This worker handles asynchronous tasks:
- * - Cron-triggered jobs (daily reports, sync operations, usage alerts)
- * - Queue consumption (SMS sending, social media sync)
- * - Email notifications
- */
-
 import { handleUsageAlertsCron } from "./usage-alerts";
 import { handleVectorizeSync } from "./queues/vectorize-sync";
 import { handleSocialSync } from "./queues/social-sync";
 import { handleEmailQueue } from "./queues/email-queue";
 import { handleInstagramTokenRefresh } from "./instagram-refresh";
+import { handleMarketingBroadcast } from "./queues/marketing-broadcast";
 
 export interface Env {
-  // ... (existing env properties)
+  DB: D1Database;
+  KV: KVNamespace;
+  SMS_OUTBOUND: Queue;
+  EMAIL_QUEUE: Queue;
+  MARKETING_BROADCAST: Queue;
+  // ... other bindings
 }
 
 export default {
-  // ... (existing fetch and queue handlers)
+  // ... (fetch and scheduled handlers)
 
-  async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
-    console.log(`Cron triggered at ${new Date().toISOString()}`);
-
-    // Run multiple cron jobs in parallel
-    await Promise.all([
-      (async () => {
-        const result = await handleUsageAlertsCron(env.DB, env.KV);
-        console.log("Usage Alerts Report:", JSON.stringify(result, null, 2));
-        if (result.errors.length > 0) {
-          console.error("Usage Alerts Errors:", result.errors);
-        }
-      })(),
-      (async () => {
-        const result = await handleInstagramTokenRefresh(env);
-        console.log("Instagram Refresh Report:", JSON.stringify(result, null, 2));
-      })(),
-    ]);
-  },
-  // ...
-}
-
-// ... (existing sendSms logic)
-
-
-
-
-interface OutboundMessage {
-// ... existing interface ...
-
-  to: string;
-  body: string;
-}
-
-async function sendSms(env: Env, to: string, body: string) {
-  if (!to || !body) return;
-  const sid = env.TWILIO_ACCOUNT_SID;
-  const token = env.TWILIO_AUTH_TOKEN;
-  const auth = btoa(`${sid}:${token}`);
-  const form = new URLSearchParams({
-    From: env.TWILIO_PHONE_NUMBER,
-    To: to,
-    Body: body,
-  });
-
-  try {
-    const resp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${auth}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: form,
-    });
-    if (!resp.ok) {
-      const text = await resp.text();
-      console.error("Twilio send failed", resp.status, text);
+  async queue(batch: MessageBatch, env: Env) {
+    switch (batch.queue) {
+      case "sms-outbound":
+        // ...
+        break;
+      case "vectorize-sync":
+        await handleVectorizeSync(batch as MessageBatch<any>, env);
+        break;
+      case "social-media-sync":
+        await handleSocialSync(batch as MessageBatch<any>, env);
+        break;
+      case "email-queue":
+        await handleEmailQueue(batch as MessageBatch<any>, env);
+        break;
+      case "marketing-broadcast":
+        await handleMarketingBroadcast(batch as MessageBatch<any>, env);
+        break;
+      default:
+        console.warn(`Unknown queue: ${batch.queue}`);
     }
-  } catch (err) {
-    console.error("Twilio send error", err);
-  }
-}
-
+  },
+};

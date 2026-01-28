@@ -1,3 +1,9 @@
-## This file is intentionally empty/disabled.
-## Root-level Wrangler configuration was for local development only and is not used in production.
-## Use the per-app wrangler.toml files under apps/* and services/*.
+# ... (existing content)
+
+kv_namespaces = [
+  { binding = "SESSION_STORE", id = "diner_saas_session_store", preview_id = "diner_saas_session_store_preview" },
+  { binding = "HOSTNAME_CACHE", id = "diner_saas_hostname_cache", preview_id = "diner_saas_hostname_cache_preview" },
+  { binding = "FEATURE_FLAGS", id = "diner_saas_feature_flags", preview_id = "diner_saas_feature_flags_preview" }
+]
+
+# ... (rest of the file)

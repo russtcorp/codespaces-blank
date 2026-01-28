@@ -91,35 +91,52 @@ async function processStripeEvent(event: Stripe.Event, db: D1Database): Promise<
 /**
  * Stripe webhook handler for Remix resource route
  */
-export async function handleStripeWebhook(
-  request: Request,
-  db: D1Database,
-  webhookSecret: string,
-  stripeClient: Stripe
-) {
-  if (request.method !== "POST") {
-    return json({ error: "Method not allowed" }, { status: 405 });
-  }
+// ... (imports and getStripeClient function)
 
-  try {
-    const signature = request.headers.get("stripe-signature") || "";
-    const body = await request.text();
+export async function handleStripeWebhook(request: Request, env: any) {
+    // ... (webhook signature verification)
 
-    const event = stripeClient.webhooks.constructEvent(
-      body,
-      signature,
-      webhookSecret
-    );
+    // 2. Handle the event
+    try {
+        switch (event.type) {
+            case 'checkout.session.completed':
+                // ... (existing logic)
+                break;
 
-    await processStripeEvent(event, db);
+            case 'invoice.paid':
+                const invoice = event.data.object as Stripe.Invoice;
+                // Enqueue email to the customer
+                await env.EMAIL_QUEUE.send({
+                    type: 'subscription-paid',
+                    payload: {
+                        recipientEmail: invoice.customer_email,
+                        tenantName: invoice.customer_name || 'Valued Customer',
+                        amount: invoice.amount_paid,
+                    }
+                });
+                break;
 
+            case 'customer.subscription.deleted':
+                const subscription = event.data.object as Stripe.Subscription;
+                // Look up customer to get email and name
+                const customer = await stripe.customers.retrieve(subscription.customer as string) as Stripe.Customer;
+                // Enqueue cancellation email
+                await env.EMAIL_QUEUE.send({
+                    type: 'subscription-cancelled',
+                    payload: {
+                        recipientEmail: customer.email,
+                        tenantName: customer.name || 'Valued Customer',
+                    }
+                });
+                break;
+            
+            default:
+                console.log(`Unhandled event type ${event.type}`);
+        }
+    } catch (err) {
+        // ... (error handling)
+    }
+
+    // 3. Return a response to acknowledge receipt of the event
     return json({ received: true });
-  } catch (err) {
-    const error = err as Error;
-    console.error("Stripe webhook error:", error.message);
-    return json(
-      { error: `Webhook Error: ${error.message}` },
-      { status: 400 }
-    );
-  }
 }

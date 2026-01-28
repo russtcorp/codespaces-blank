@@ -1,16 +1,34 @@
 import * as React from "react";
 import { cn } from "../utils";
 
-const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)}
-      {...props}
-    />
-  )
-);
-Card.displayName = "Card";
+/**
+ * A versatile container component for grouping related content.
+ * It is composed of several sub-components that can be used to structure the card.
+ * @example
+ * <Card>
+ *   <Card.Header>
+ *     <Card.Title>Card Title</Card.Title>
+ *     <Card.Description>Card Description</Card.Description>
+ *   </Card.Header>
+ *   <Card.Content>
+ *     <p>Card content goes here.</p>
+ *   </Card.Content>
+ *   <Card.Footer>
+ *     <Button>Action</Button>
+ *   </Card.Footer>
+ * </Card>
+ */
+const Card = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)}
+    {...props}
+  />
+))
+Card.displayName = "Card"
 
 const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (

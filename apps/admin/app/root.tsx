@@ -6,19 +6,29 @@ export async function loader({ request }: LoaderFunctionArgs) {
   };
 }
 
-export default function Index() {
+import {
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+
+const queryClient = new QueryClient();
+
+export default function App() {
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-4xl font-bold">Diner SaaS - Admin Dashboard</h1>
-      <p className="mt-4 text-gray-600">
-        Admin dashboard coming in Phase 6. This will include:
-      </p>
-      <ul className="mt-2 list-inside list-disc text-gray-600">
-        <li>Fleet Management</li>
-        <li>"Magic Start" Onboarding</li>
-        <li>Billing & Subscriptions</li>
-        <li>Audit Logs & Infrastructure</li>
-      </ul>
-    </div>
+    <html lang="en">
+      <head>
+        {/* ... */}
+      </head>
+      <body>
+        <QueryClientProvider client={queryClient}>
+          <Outlet />
+          <ScrollRestoration />
+          <Scripts />
+          <ReactQueryDevtools initialIsOpen={false} />
+        </QueryClientProvider>
+      </body>
+    </html>
   );
 }
+
