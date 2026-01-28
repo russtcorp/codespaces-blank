@@ -17,8 +17,7 @@ import {
   QueryClientProvider,
 } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-
-const queryClient = new QueryClient();
+import { useState } from 'react';
 
 // ... (links function)
 
@@ -30,6 +29,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export default function App() {
   const { flags } = useLoaderData<typeof loader>();
+  const [queryClient] = useState(() => new QueryClient());
 
   return (
     <html lang="en" className="h-full">

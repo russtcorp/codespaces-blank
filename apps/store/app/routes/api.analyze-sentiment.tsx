@@ -16,6 +16,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
   // ... (validation)
   
   const db = drizzle(env.DB);
+  
+  // Verify the review exists and get its tenantId
+  const review = await db.select({ tenantId: reviews.tenantId }).from(reviews).where(eq(reviews.id, reviewId)).get();
+  if (!review) {
+    return json({ error: 'Review not found' }, { status: 404 });
+  }
+  
+  // TODO: Validate that the authenticated user has access to this tenant
+  // This requires session validation which should be added when implementing auth
+  // For now, we at least verify the review exists
+  
   const { largeModel } = getAIProvider(env);
 
   try {
