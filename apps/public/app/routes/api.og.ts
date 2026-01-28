@@ -73,7 +73,7 @@ async function resolveTenant(host: string, env: any) {
   if (cached) return cached;
 
   const result = await env.DB.prepare(
-    "SELECT t.id, t.business_name, t.slug, t.custom_domain, bs.address FROM tenants t LEFT JOIN business_settings bs ON t.id = bs.tenant_id WHERE t.slug = ? OR t.custom_domain = ? OR EXISTS (SELECT 1 FROM host_mapping hm WHERE hm.tenant_id = t.id AND hm.host = ?)"
+    "SELECT t.id, t.businessName, t.slug, t.customDomain, bs.address FROM tenants t LEFT JOIN business_settings bs ON t.id = bs.tenantId WHERE t.slug = ? OR t.customDomain = ? OR EXISTS (SELECT 1 FROM host_mapping hm WHERE hm.tenantId = t.id AND hm.host = ?)"
   )
     .bind(getSubdomain(host), host, host)
     .first();
@@ -95,7 +95,7 @@ function getSubdomain(host: string): string {
 
 async function generateMenuItemSvg(tenant: any, itemId: string, env: any): Promise<string> {
   const item = await env.DB.prepare(
-    "SELECT mi.name, mi.description, mi.price, mi.image_cf_id, c.name as category_name FROM menu_items mi LEFT JOIN categories c ON mi.category_id = c.id WHERE mi.id = ? AND mi.tenant_id = ?"
+    "SELECT mi.name, mi.description, mi.price, mi.imageCfId, c.name as categoryName FROM menu_items mi LEFT JOIN categories c ON mi.categoryId = c.id WHERE mi.id = ? AND mi.tenantId = ?"
   )
     .bind(itemId, tenant.id)
     .first();
@@ -127,7 +127,7 @@ async function generateMenuItemSvg(tenant: any, itemId: string, env: any): Promi
         React.createElement(
           "div",
           { style: { fontSize: 20, color: primaryColor, fontWeight: 700, marginBottom: 10 } },
-          item.category_name || "Menu Item"
+          item.categoryName || "Menu Item"
         ),
         React.createElement(
           "div",
@@ -147,7 +147,7 @@ async function generateMenuItemSvg(tenant: any, itemId: string, env: any): Promi
         React.createElement(
           "div",
           { style: { fontSize: 18, color: "#999", marginTop: "auto" } },
-          tenant.business_name
+          tenant.businessName
         )
       )
     ),

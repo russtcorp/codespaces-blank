@@ -44,7 +44,7 @@ interface MenuItem {
 interface Category {
   id: number;
   name: string;
-  sort_order: number;
+  sortOrder: number;
   items: MenuItem[];
 }
 

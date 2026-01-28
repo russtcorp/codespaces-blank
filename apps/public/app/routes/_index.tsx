@@ -61,7 +61,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     
     // Fetch tenant data
     const tenant = await env.DB.prepare(
-      `SELECT id, business_name AS businessName, slug FROM tenants WHERE id = ?`
+      `SELECT id, businessName, slug FROM tenants WHERE id = ?`
     ).bind(tenantId).first();
     
     if (!tenant) {
@@ -71,26 +71,26 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     // Fetch theme config
     const theme = await env.DB.prepare(
       `SELECT 
-        primary_color AS primaryColor,
-        secondary_color AS secondaryColor,
-        font_heading AS fontHeading,
-        font_body AS fontBody,
-        logo_image_cf_id AS logoImageCfId,
-        hero_image_cf_id AS heroImageCfId,
-        custom_css AS customCss
-      FROM theme_config WHERE tenant_id = ?`
+        primaryColor,
+        secondaryColor,
+        fontHeading,
+        fontBody,
+        logoImageCfId,
+        heroImageCfId,
+        customCss
+      FROM theme_config WHERE tenantId = ?`
     ).bind(tenantId).first();
     
     // Fetch business settings
     const settings = await env.DB.prepare(
       `SELECT 
-        phone_public AS phonePublic,
+        phonePublic,
         address,
         timezone,
-        is_hiring AS isHiring,
-        emergency_close_reason AS emergencyCloseReason,
-        emergency_reopen_time AS emergencyReopenTime
-      FROM business_settings WHERE tenant_id = ?`
+        isHiring,
+        emergencyCloseReason,
+        emergencyReopenTime
+      FROM business_settings WHERE tenantId = ?`
     ).bind(tenantId).first();
     
     // Phase 3 Requirement: Get open status with Truth Hierarchy
@@ -104,23 +104,23 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     
     // Fetch menu data
     const categories = await env.DB.prepare(
-      `SELECT id, name, sort_order AS sortOrder 
-       FROM categories WHERE tenant_id = ? AND is_visible = 1 ORDER BY sort_order`
+      `SELECT id, name, sortOrder 
+       FROM categories WHERE tenantId = ? AND isVisible = 1 ORDER BY sortOrder`
     ).bind(tenantId).all();
     
     const menuItems = await env.DB.prepare(
       `SELECT 
         id,
-        category_id AS categoryId,
+        categoryId,
         name,
         description,
         price,
-        image_cf_id AS imageCfId,
-        is_available AS isAvailable,
-        dietary_tags AS dietaryTags,
-        dietary_tags_verified AS dietaryTagsVerified,
-        is_highlighted AS isHighlighted
-      FROM menu_items WHERE tenant_id = ? AND deleted_at IS NULL`
+        imageCfId,
+        isAvailable,
+        dietaryTags,
+        dietaryTagsVerified,
+        isHighlighted
+      FROM menu_items WHERE tenantId = ? AND deletedAt IS NULL`
     ).bind(tenantId).all();
     
     // Group items by category

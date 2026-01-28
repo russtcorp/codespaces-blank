@@ -8,9 +8,9 @@ import { toast } from "sonner";
 
 interface OperatingHour {
   id: number;
-  day_of_week: number;
-  start_time: string;
-  end_time: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
 }
 
 interface HoursMatrixProps {
@@ -49,13 +49,13 @@ export function HoursMatrix({ hours, fetcher }: HoursMatrixProps) {
 
   // Group hours by day
   const hoursByDay = DAYS.map((day, index) => {
-    const dayHours = hours.filter((h) => h.day_of_week === index);
+    const dayHours = hours.filter((h) => h.dayOfWeek === index);
     return {
       day,
       dayOfWeek: index,
       slots: dayHours.map((h) => ({
-        start: h.start_time,
-        end: h.end_time,
+        start: h.startTime,
+        end: h.endTime,
       })),
     };
   });
