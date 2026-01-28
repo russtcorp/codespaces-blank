@@ -4,13 +4,13 @@
   "private": true,
   "description": "Cloudflare-native multi-tenant diner platform",
   "scripts": {
-    
     "build": "turbo run build",
     "deploy": "turbo run deploy",
     "db:migrate": "wrangler d1 execute diner-core --file=./packages/db/migrations/0001_init_schema.sql",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "test:e2e": "cd tests/e2e && pnpm test"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241218.0",

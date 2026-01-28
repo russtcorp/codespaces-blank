@@ -4,6 +4,21 @@ import { getAuthenticator, verifyTurnstile, sendMagicLink } from "~/services/aut
 import { Button } from "@diner-saas/ui/button";
 import { Input } from "@diner-saas/ui/input";
 import { Card } from "@diner-saas/ui/card";
+import { useRemixForm, getValidatedFormData, RemixFormProvider } from "remix-hook-form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { toast } from "sonner";
+import { useEffect } from "react";
+
+const loginSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address" }),
+  "cf-turnstile-response": z.string().optional(),
+  intent: z.literal("request-magic-link"),
+});
+
+type LoginFormData = z.infer<typeof loginSchema>;
+const resolver = zodResolver(loginSchema);
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const env = (context as any).cloudflare?.env;
@@ -22,55 +37,52 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export async function action({ request, context }: ActionFunctionArgs) {
   const env = (context as any).cloudflare?.env;
-  const formData = await request.formData();
-  const intent = formData.get("intent");
+  
+  // Validate form data with Zod
+  const { errors, data, receivedValues: defaultValues } = await getValidatedFormData<LoginFormData>(
+    request,
+    resolver
+  );
+
+  if (errors) {
+    return json({ errors, defaultValues }, { status: 400 });
+  }
 
   // Handle magic link request
-  if (intent === "request-magic-link") {
-    const email = formData.get("email");
-    const turnstileToken = formData.get("cf-turnstile-response");
+  if (data.intent === "request-magic-link") {
+    const { email } = data;
+    const turnstileToken = data["cf-turnstile-response"];
 
-    if (typeof email !== "string" || !email) {
-      return json({ error: "Email is required" }, { status: 400 });
+    if (!turnstileToken) {
+      // In a real browser this should be set by the widget
+      // For dev/test, we might skip strict checking if key is missing
+      if (env?.TURNSTILE_SITE_KEY) {
+         return json({ errors: { "cf-turnstile-response": "Security check required" }, defaultValues }, { status: 400 });
+      }
     }
 
-    if (typeof turnstileToken !== "string" || !turnstileToken) {
-      return json({ error: "Please complete the security check" }, { status: 400 });
-    }
-
-    // Verify Turnstile token
-    const isTurnstileValid = await verifyTurnstile(turnstileToken, env);
-
-    if (!isTurnstileValid) {
-      return json({ error: "Security check failed. Please try again." }, { status: 400 });
+    if (turnstileToken) {
+        // Verify Turnstile token
+        const isTurnstileValid = await verifyTurnstile(turnstileToken, env);
+        if (!isTurnstileValid) {
+          return json({ errors: { "cf-turnstile-response": "Security check failed" }, defaultValues }, { status: 400 });
+        }
     }
 
     // Send magic link
-    const result = await sendMagicLink(email as string, env);
+    const result = await sendMagicLink(email, env);
 
     if (!result.success) {
-      return json({ error: result.error || "Failed to send magic link" }, { status: 500 });
+      return json({ 
+        errors: { root: result.error || "Failed to send magic link" }, 
+        defaultValues 
+      }, { status: 500 });
     }
 
     return json({ 
       success: true, 
       message: "Check your email for a magic link to sign in." 
     });
-  }
-
-  // Handle magic link verification
-  if (intent === "verify-magic-link") {
-    try {
-      const authenticator = getAuthenticator(env);
-      await authenticator.authenticate("magic-link", request, {
-        successRedirect: "/dashboard",
-        failureRedirect: "/auth/login?error=invalid-link",
-      });
-      return redirect("/dashboard");
-    } catch (error) {
-      console.error("Authentication error:", error);
-      return redirect("/auth/login?error=invalid-link");
-    }
   }
 
   return json({ error: "Invalid request" }, { status: 400 });
@@ -80,6 +92,26 @@ export default function AuthLogin() {
   const data = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+
+  const form = useRemixForm<LoginFormData>({
+    mode: "onSubmit",
+    resolver,
+    defaultValues: {
+      email: "",
+      intent: "request-magic-link"
+    }
+  });
+
+  const { register, formState: { errors } } = form;
+
+  useEffect(() => {
+    if (data?.success) {
+        toast.success(data.message);
+    }
+    if (data?.errors?.root) {
+        toast.error(String(data.errors.root));
+    }
+  }, [data]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
@@ -93,52 +125,52 @@ export default function AuthLogin() {
           </p>
         </div>
 
-        {data?.success && (
-          <div className="rounded-md bg-green-50 p-4">
-            <p className="text-sm text-green-800">{data.message}</p>
-          </div>
-        )}
+        <RemixFormProvider {...form}>
+          <Form method="post" onSubmit={form.handleSubmit} className="mt-8 space-y-6">
+            <input type="hidden" {...register("intent")} value="request-magic-link" />
+            
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email address
+              </label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                className="mt-1"
+                placeholder="you@example.com"
+                disabled={isSubmitting}
+                {...register("email")}
+              />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+              )}
+            </div>
 
-        {data?.error && (
-          <div className="rounded-md bg-red-50 p-4">
-            <p className="text-sm text-red-800">{data.error}</p>
-          </div>
-        )}
+            {/* Cloudflare Turnstile */}
+            {data?.turnstileSiteKey && (
+                 <div className="min-h-[65px]">
+                    <div 
+                        className="cf-turnstile" 
+                        data-sitekey={data?.turnstileSiteKey}
+                        data-theme="light"
+                        data-response-field-name="cf-turnstile-response"
+                    />
+                    {errors["cf-turnstile-response"] && (
+                        <p className="mt-1 text-sm text-red-600">{errors["cf-turnstile-response"].message}</p>
+                    )}
+                 </div>
+            )}
 
-        <Form method="post" className="mt-8 space-y-6">
-          <input type="hidden" name="intent" value="request-magic-link" />
-          
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email address
-            </label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              className="mt-1"
-              placeholder="you@example.com"
+            <Button
+              type="submit"
+              className="w-full"
               disabled={isSubmitting}
-            />
-          </div>
-
-          {/* Cloudflare Turnstile */}
-          <div 
-            className="cf-turnstile" 
-            data-sitekey={data?.turnstileSiteKey}
-            data-theme="light"
-          />
-
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Sending..." : "Send Magic Link"}
-          </Button>
-        </Form>
+            >
+              {isSubmitting ? "Sending..." : "Send Magic Link"}
+            </Button>
+          </Form>
+        </RemixFormProvider>
 
         <p className="mt-4 text-center text-xs text-gray-500">
           Protected by Cloudflare Turnstile

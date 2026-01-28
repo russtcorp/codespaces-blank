@@ -57,3 +57,11 @@ export type { EmergencyClosePayload, EmergencyStatus } from "./emergency-button"
 export { createBroadcastMessage, publishBroadcast, getActiveBroadcasts, clearAllBroadcasts } from "./broadcast";
 export type { BroadcastMessage as Broadcast } from "./broadcast";
 
+// Phone resolution
+export { resolveTenantByPhone } from "./phone-resolution";
+
+// Audit Logging
+export { logAuditEvent } from "./audit";
+
+
+

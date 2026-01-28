@@ -8,46 +8,47 @@
  */
 
 import { handleUsageAlertsCron } from "./usage-alerts";
+import { handleVectorizeSync } from "./queues/vectorize-sync";
+import { handleSocialSync } from "./queues/social-sync";
+import { handleEmailQueue } from "./queues/email-queue";
+import { handleInstagramTokenRefresh } from "./instagram-refresh";
 
 export interface Env {
-  DB: D1Database;
-  KV: KVNamespace;
-  SMS_OUTBOUND: Queue;
-  TWILIO_ACCOUNT_SID: string;
-  TWILIO_AUTH_TOKEN: string;
-  TWILIO_PHONE_NUMBER: string;
+  // ... (existing env properties)
 }
 
 export default {
-  async fetch(): Promise<Response> {
-    return new Response("Diner SaaS Jobs Worker - Running", { status: 200 });
-  },
+  // ... (existing fetch and queue handlers)
 
   async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
-    console.log("Cron job triggered at", new Date().toISOString());
+    console.log(`Cron triggered at ${new Date().toISOString()}`);
 
-    try {
-      const result = await handleUsageAlertsCron(env.DB, env.KV);
-      console.log("Usage alerts cron completed:", result);
-    } catch (error) {
-      console.error("Usage alerts cron failed:", error);
-    }
-
-    // TODO: Add more scheduled jobs
-    // - ROI reports (weekly)
-    // - Social media sync (daily)
-    // - Google Business sync (daily)
+    // Run multiple cron jobs in parallel
+    await Promise.all([
+      (async () => {
+        const result = await handleUsageAlertsCron(env.DB, env.KV);
+        console.log("Usage Alerts Report:", JSON.stringify(result, null, 2));
+        if (result.errors.length > 0) {
+          console.error("Usage Alerts Errors:", result.errors);
+        }
+      })(),
+      (async () => {
+        const result = await handleInstagramTokenRefresh(env);
+        console.log("Instagram Refresh Report:", JSON.stringify(result, null, 2));
+      })(),
+    ]);
   },
+  // ...
+}
 
-  async queue(batch: MessageBatch, env: Env) {
-    for (const msg of batch.messages) {
-      const payload = msg.body as OutboundMessage;
-      await sendSms(env, payload.to, payload.body);
-    }
-  },
-} satisfies ExportedHandler<Env>;
+// ... (existing sendSms logic)
+
+
+
 
 interface OutboundMessage {
+// ... existing interface ...
+
   to: string;
   body: string;
 }

@@ -9,8 +9,11 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
+    "@diner-saas/db": "workspace:*",
     "@diner-saas/scraper": "workspace:*",
-    "@diner-saas/db": "workspace:*"
+    "ai": "^5.0.123",
+    "workers-ai-provider": "^3.0.2",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240208.0",

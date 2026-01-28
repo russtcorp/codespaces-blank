@@ -2,6 +2,7 @@ import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from
 import { Outlet, useLoaderData, Link, Form, useLocation } from "@remix-run/react";
 import { getAuthenticator } from "~/services/auth.server";
 import { Button } from "@diner-saas/ui/button";
+import { CommandMenu } from "~/components/CommandMenu";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const env = (context as any).cloudflare?.env;
@@ -35,6 +36,7 @@ export default function DashboardLayout() {
 
   return (
     <div className="flex h-screen bg-gray-100">
+      <CommandMenu />
       {/* Sidebar */}
       <div className="w-64 bg-white shadow-lg">
         <div className="flex h-full flex-col">
@@ -79,7 +81,7 @@ export default function DashboardLayout() {
 
           {/* Logout */}
           <div className="border-t p-4">
-            <Form method="post">
+            <Form method="post" id="logout-form">
               <Button
                 type="submit"
                 variant="outline"

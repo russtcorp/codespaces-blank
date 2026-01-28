@@ -1,17 +1,20 @@
 import type { ActionFunctionArgs } from "@remix-run/cloudflare";
+import Stripe from "stripe";
 import { handleStripeWebhook } from "../services/stripe-webhook.server";
 
 /**
  * Stripe Webhook Endpoint
  * POST /api/stripe-webhook
- * 
- * Receives events from Stripe when subscriptions are created, updated, or deleted
- * Syncs subscription status to D1 database
  */
 export async function action({ request, context }: ActionFunctionArgs) {
-  const env = context.cloudflare.env as Record<string, unknown>;
-  const DB = env.DB as D1Database;
+  const env = context.cloudflare.env as any;
+  const db = env.DB as D1Database;
+  const stripeSecretKey = env.STRIPE_SECRET_KEY as string;
   const webhookSecret = env.STRIPE_WEBHOOK_SECRET as string;
 
-  return handleStripeWebhook(request, DB, webhookSecret);
+  const stripe = new Stripe(stripeSecretKey, {
+    httpClient: Stripe.createFetchHttpClient(),
+  });
+
+  return handleStripeWebhook(request, db, webhookSecret, stripe);
 }

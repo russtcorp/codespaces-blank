@@ -1,6 +1,7 @@
 import { createDb, createSafeDb, getOpenStatus } from "@diner-saas/db";
 import type { SafeDatabase } from "@diner-saas/db";
-import type { InboundMessage, Env } from "../durable-object";
+import type { InboundMessage } from "@diner-saas/ai";
+import type { Env } from "../durable-object";
 
 export interface CommandResult {
   response?: string;

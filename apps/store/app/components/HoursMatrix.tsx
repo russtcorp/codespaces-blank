@@ -1,8 +1,10 @@
 import * as React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@diner-saas/ui/button";
 import { Input } from "@diner-saas/ui/input";
 import type { FetcherWithComponents } from "@remix-run/react";
+import { parse, isValid, isBefore } from "date-fns";
+import { toast } from "sonner";
 
 interface OperatingHour {
   id: number;
@@ -31,9 +33,19 @@ const DAYS = [
   "Saturday",
 ];
 
+// Helper to parse "HH:mm" string to Date (using arbitrary date)
+const parseTime = (timeStr: string) => parse(timeStr, "HH:mm", new Date());
+
 export function HoursMatrix({ hours, fetcher }: HoursMatrixProps) {
   const [editingDay, setEditingDay] = useState<number | null>(null);
   const [tempSlots, setTempSlots] = useState<TimeSlot[]>([]);
+
+  // Listen for fetcher success
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data?.success) {
+      toast.success("Operating hours updated successfully");
+    }
+  }, [fetcher.state, fetcher.data]);
 
   // Group hours by day
   const hoursByDay = DAYS.map((day, index) => {
@@ -70,18 +82,28 @@ export function HoursMatrix({ hours, fetcher }: HoursMatrixProps) {
   const handleSave = () => {
     if (editingDay === null) return;
 
-    // Validate slots
+    // Validate slots using date-fns
     for (const slot of tempSlots) {
-      if (slot.start >= slot.end) {
-        alert("Start time must be before end time");
+      if (!isValid(parseTime(slot.start)) || !isValid(parseTime(slot.end))) {
+         toast.error("Invalid time format. Please use HH:MM (e.g., 09:00).");
+         return;
+      }
+
+      if (!isBefore(parseTime(slot.start), parseTime(slot.end))) {
+        toast.error(`Start time (${slot.start}) must be before end time (${slot.end})`);
         return;
       }
     }
 
+    // Sort slots by start time to keep data clean
+    const sortedSlots = [...tempSlots].sort((a, b) => 
+        parseTime(a.start).getTime() - parseTime(b.start).getTime()
+    );
+
     const formData = new FormData();
     formData.append("intent", "update-hours");
     formData.append("dayOfWeek", editingDay.toString());
-    formData.append("hours", JSON.stringify(tempSlots));
+    formData.append("hours", JSON.stringify(sortedSlots));
 
     fetcher.submit(formData, { method: "post" });
     setEditingDay(null);
@@ -151,6 +173,7 @@ export function HoursMatrix({ hours, fetcher }: HoursMatrixProps) {
                 ) : (
                   day.slots.map((slot, index) => (
                     <div key={index}>
+                      {/* Format for display using date-fns if desired, currently keeping 24h as per input */}
                       {slot.start} - {slot.end}
                     </div>
                   ))

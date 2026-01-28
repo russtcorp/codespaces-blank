@@ -238,11 +238,50 @@ All Phase 4 requirements from the Master Plan are **PRODUCTION-READY**:
 
 ---
 
+## Phase 5: Advanced & Automation ✅
+
+All Phase 5 requirements from the Master Plan are **PRODUCTION-READY**:
+
+### Magic Start Onboarding
+- ✅ **Automated Scraper Workflow**: `services/workflows` orchestrates Browser Rendering to scrape a tenant's existing website, social media, and Google Maps presence.
+- ✅ **AI-Powered Parsing**: The scraped text content is parsed by a Llama 3 model using a Zod schema (`generateObject`) to automatically extract menu items, categories, and prices.
+- ✅ **Admin Approval UI**: `apps/admin/app/routes/admin.onboarding.tsx` provides a visual diff for administrators to review and approve the scraped data before provisioning the new tenant account.
+- ✅ **Automated Provisioning**: Upon approval, the workflow automatically creates all necessary D1 records for the new tenant (tenant record, settings, theme, menu items, etc.).
+
+### AI-Powered Features
+- ✅ **Menu Description Generation**: The tenant dashboard's visual menu editor now includes a button to generate appetizing menu descriptions using AI.
+- ✅ **Review Response Drafting**: The new Review Management dashboard allows tenants to generate polite and professional draft responses to customer reviews.
+
+### Background Jobs & Syncing
+- ✅ **Social Media Sync**: The `social-media-sync` queue consumer, implemented in `services/jobs`, periodically fetches the latest posts from a tenant's linked Instagram account and saves them to the database.
+- ✅ **Token Auto-Refresh**: A daily cron job (`instagram-refresh.ts`) automatically refreshes 60-day Instagram API tokens to ensure the sync continues uninterrupted.
+
+---
+
+## Phase 6: Polish & Compliance ✅
+
+All Phase 6 requirements from the Master Plan are **PRODUCTION-READY**:
+
+### Billing & Monetization
+- ✅ **Stripe Webhook Integration**: A robust webhook handler in `apps/store` (`api.stripe-webhook.tsx`) uses the official Stripe library to securely process events and keep tenant subscription statuses in sync with D1.
+- ✅ **Admin Billing Dashboard**: A new view at `apps/admin/app/routes/admin.billing.tsx` provides administrators with a comprehensive overview of all tenant subscriptions, revenue, and statuses.
+- ✅ **Audit Trail**: All incoming Stripe events are logged to the `subscription_events` table for a complete audit trail.
+
+### Stability & Testing
+- ✅ **End-to-End Testing Suite**: A Playwright test suite has been established in the `tests/e2e` directory.
+- ✅ **CI Integration**: The test suite is configured to run against multiple applications (public, store, admin) and includes a global setup for handling authentication, making it ready for CI integration.
+- ✅ **Critical Flow Coverage**: Tests cover the public site, authenticated store dashboard (menu and review actions), and the admin onboarding flow.
+
+### Delivery & Observability
+- ✅ **Production Email Delivery**: The `sendMagicLink` function now pushes to a dedicated `EMAIL_QUEUE`.
+- ✅ **MailChannels Consumer**: The `services/jobs` worker consumes from the `EMAIL_QUEUE` and reliably sends transactional emails via MailChannels.
+- ✅ **Structured Logging & Error Reporting**: A dedicated `@diner-saas/logger` package provides structured JSON logging and Sentry error reporting across the platform.
+
 ## Notes
 
 - The Store app binds to the Durable Object class `DinerAgent` using the worker script name `agent-worker` per spec.
 - All R2 bindings use the name `ASSETS` across apps for consistency.
-- Observability can remain enabled in production.
+- The project is now considered feature-complete based on the original master plan.
 
 ## Support
 

@@ -154,3 +154,47 @@ export const hostMapping = sqliteTable("host_mapping", {
   isPrimary: integer("is_primary", { mode: "boolean" }).default(false),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
+
+// SOCIAL POSTS
+export const socialPosts = sqliteTable("social_posts", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").references(() => tenants.id),
+  platform: text("platform"),
+  externalId: text("external_id"),
+  caption: text("caption"),
+  mediaUrl: text("media_url"),
+  permalink: text("permalink"),
+  thumbnailUrl: text("thumbnail_url"),
+  postedAt: text("posted_at"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+}, (table) => ({
+  tenantIdx: index("social_posts_tenant_idx").on(table.tenantId),
+}));
+
+// REVIEWS
+export const reviews = sqliteTable("reviews", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  tenantId: text("tenant_id").references(() => tenants.id),
+  platform: text("platform"),
+  externalId: text("external_id"),
+  reviewerName: text("reviewer_name"),
+  rating: integer("rating"),
+  content: text("content"),
+  aiDraftResponse: text("ai_draft_response"),
+  status: text("status").default("new"),
+  postedAt: text("posted_at"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+}, (table) => ({
+  tenantIdx: index("reviews_tenant_idx").on(table.tenantId),
+}));
+
+// SUBSCRIPTION EVENTS
+export const subscriptionEvents = sqliteTable("subscription_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  tenantId: text("tenant_id").references(() => tenants.id),
+  eventType: text("event_type").notNull(),
+  stripeEventId: text("stripe_event_id"),
+  previousStatus: text("previous_status"),
+  newStatus: text("new_status"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
