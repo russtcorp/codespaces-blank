@@ -80,10 +80,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
           await db
             .insert(operatingHours)
             .values({
-              tenant_id: user.tenantId,
-              day_of_week: dayOfWeek,
-              start_time: hour.start,
-              end_time: hour.end,
+              tenantId: user.tenantId,
+              dayOfWeek: dayOfWeek,
+              startTime: hour.start,
+              endTime: hour.end,
             })
             .run();
         }
@@ -99,8 +99,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
         await db
           .insert(specialDates)
           .values({
-            tenant_id: user.tenantId,
-            date_iso: dateIso,
+            tenantId: user.tenantId,
+            dateIso: dateIso,
             status,
             reason,
           })
