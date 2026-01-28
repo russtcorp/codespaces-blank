@@ -20,12 +20,12 @@ export async function handleUsageAlertsCron(
     // Get all active tenants
     const tenantsResult = await db
       .prepare(
-        `SELECT id, business_name, email_alias 
+        `SELECT id, businessName, emailAlias 
          FROM tenants 
-         WHERE subscription_status = 'active' 
-         AND deleted_at IS NULL`
+         WHERE subscriptionStatus = 'active' 
+         AND deletedAt IS NULL`
       )
-      .all<{ id: string; business_name: string; email_alias?: string }>();
+      .all<{ id: string; businessName: string; emailAlias?: string }>();
 
     const tenants = tenantsResult.results || [];
 
@@ -40,9 +40,9 @@ export async function handleUsageAlertsCron(
         const staleItemsResult = await db
           .prepare(
             `SELECT COUNT(*) as count FROM menu_items 
-             WHERE tenant_id = ? 
-             AND (updated_at IS NULL OR updated_at < ?)
-             AND is_available = 1`
+             WHERE tenantId = ? 
+             AND (updatedAt IS NULL OR updatedAt < ?)
+             AND isAvailable = 1`
           )
           .bind(tenant.id, staleDateStr)
           .first<{ count: number}>();
@@ -57,8 +57,8 @@ export async function handleUsageAlertsCron(
             JSON.stringify({
               type: "stale_menu",
               tenantId: tenant.id,
-              businessName: tenant.business_name,
-              email: tenant.email_alias,
+              businessName: tenant.businessName,
+              email: tenant.emailAlias,
               staleItemCount: staleCount,
               createdAt: new Date().toISOString(),
             }),
@@ -80,7 +80,7 @@ export async function handleUsageAlertsCron(
             flagKey,
             JSON.stringify({
               tenantId: tenant.id,
-              businessName: tenant.business_name,
+              businessName: tenant.businessName,
               tokenUsage: tokens,
               flaggedAt: new Date().toISOString(),
             }),

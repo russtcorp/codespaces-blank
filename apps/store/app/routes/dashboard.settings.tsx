@@ -28,7 +28,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const settings = await db
     .select()
     .from(businessSettings)
-    .where(eq(businessSettings.tenant_id, user.tenantId))
+    .where(eq(businessSettings.tenantId, user.tenantId))
     .get();
 
   return json({ user, userData, settings });
@@ -58,7 +58,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         await db
           .update(authorizedUsers)
           .set({
-            notification_preferences: JSON.stringify(preferences),
+            notificationPreferences: JSON.stringify(preferences),
           })
           .where(eq(authorizedUsers.id, user.id))
           .run();
@@ -75,9 +75,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
         await db
           .update(businessSettings)
           .set({
-            marketing_pixels: JSON.stringify(pixels),
+            marketingPixels: JSON.stringify(pixels),
           })
-          .where(eq(businessSettings.tenant_id, user.tenantId))
+          .where(eq(businessSettings.tenantId, user.tenantId))
           .run();
 
         return json({ success: true });
@@ -92,10 +92,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
           .update(businessSettings)
           .set({
             address,
-            phone_public: phone,
+            phonePublic: phone,
             timezone,
           })
-          .where(eq(businessSettings.tenant_id, user.tenantId))
+          .where(eq(businessSettings.tenantId, user.tenantId))
           .run();
 
         return json({ success: true });

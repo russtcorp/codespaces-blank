@@ -4,7 +4,6 @@ import { eq } from "drizzle-orm";
 import { generateObject } from 'ai';
 import { getAIProvider } from "@diner-saas/ai/src/provider";
 import { z } from 'zod';
-// ... (other imports)
 
 // Define the message type for vectorize sync queue
 export interface VectorizeSyncMessage {

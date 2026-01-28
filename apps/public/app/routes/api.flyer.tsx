@@ -21,10 +21,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   // Fetch tenant data (including theme logo)
   const tenant = await env.DB.prepare(
-    `SELECT t.business_name, t.slug, bs.address, bs.phone_public, bs.wifi_ssid, bs.wifi_password, tc.logo_image_cf_id
+    `SELECT t.businessName, t.slug, bs.address, bs.phonePublic, bs.wifiSsid, bs.wifiPassword, tc.logoImageCfId
      FROM tenants t
-     LEFT JOIN business_settings bs ON t.id = bs.tenant_id
-     LEFT JOIN theme_config tc ON t.id = tc.tenant_id
+     LEFT JOIN business_settings bs ON t.id = bs.tenantId
+     LEFT JOIN theme_config tc ON t.id = tc.tenantId
      WHERE t.id = ?`
   )
     .bind(tenantId)
@@ -44,8 +44,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   // Generate WiFi QR code if credentials available
   let wifiQrCodeDataUrl = null;
-  if (tenant.wifi_ssid) {
-    const wifiString = `WIFI:T:WPA;S:${tenant.wifi_ssid};P:${tenant.wifi_password || ""};;`;
+  if (tenant.wifiSsid) {
+    const wifiString = `WIFI:T:WPA;S:${tenant.wifiSsid};P:${tenant.wifiPassword || ""};;`;
     wifiQrCodeDataUrl = await QRCode.toDataURL(wifiString, {
       errorCorrectionLevel: "M",
       margin: 2,
@@ -55,8 +55,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   // Optional logo from Cloudflare Images
   const imagesAccountHash = env.CLOUDFLARE_IMAGES_ACCOUNT_HASH;
-  const logoUrl = tenant.logo_image_cf_id && imagesAccountHash
-    ? `https://imagedelivery.net/${imagesAccountHash}/${tenant.logo_image_cf_id}/public`
+  const logoUrl = tenant.logoImageCfId && imagesAccountHash
+    ? `https://imagedelivery.net/${imagesAccountHash}/${tenant.logoImageCfId}/public`
     : null;
 
   // Create PDF document
@@ -65,9 +65,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
       <Page size="LETTER" style={styles.page}>
         <View style={styles.header}>
           {logoUrl && <PDFImage src={logoUrl} style={styles.logo} />}
-          <Text style={styles.businessName}>{tenant.business_name}</Text>
+          <Text style={styles.businessName}>{tenant.businessName}</Text>
           {tenant.address && <Text style={styles.address}>{tenant.address}</Text>}
-          {tenant.phone_public && <Text style={styles.phone}>{tenant.phone_public}</Text>}
+          {tenant.phonePublic && <Text style={styles.phone}>{tenant.phonePublic}</Text>}
         </View>
 
         <View style={styles.section}>

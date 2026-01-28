@@ -18,12 +18,14 @@ export type AuditEvent = z.infer<typeof AuditEventSchema>;
  * 
  * Format: [AUDIT] <JSON_STRING>
  */
-export function logAuditEvent(event: Omit<AuditEvent, "timestamp">) {
-  const payload: AuditEvent = {
+export function logAuditEvent(event: Omit<AuditEvent, "timestamp" | "actor"> & { actor?: string }) {
+  // Parse with defaults applied
+  const parsed = AuditEventSchema.parse({
     ...event,
+    actor: event.actor || "system",
     timestamp: new Date().toISOString(),
-  };
+  });
 
   // Log with a specific prefix so Logpush filters can target it
-  console.info(`[AUDIT] ${JSON.stringify(payload)}`);
+  console.info(`[AUDIT] ${JSON.stringify(parsed)}`);
 }

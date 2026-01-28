@@ -9,7 +9,7 @@ const menuSchema = z.object({
   items: z.array(z.object({
     name: z.string(),
     description: z.string().optional(),
-    price: z.number(),
+    price: z.coerce.number(), // Use coerce to handle string inputs from LLM
     category: z.string()
   }))
 });
@@ -87,20 +87,20 @@ async function provisionFromPreview(env: Env, data: any) {
 
   // Create tenant
   await env.DB.prepare(
-    `INSERT INTO tenants (id, slug, business_name, subscription_status, status, created_at)
+    `INSERT INTO tenants (id, slug, businessName, subscriptionStatus, status, createdAt)
      VALUES (?, ?, ?, 'trial', 'active', ?)`
   ).bind(tenantId, slug, businessName, new Date().toISOString()).run();
 
   // Create business settings
   await env.DB.prepare(
-    `INSERT INTO business_settings (tenant_id, address, phone_public, timezone, is_hiring)
+    `INSERT INTO business_settings (tenantId, address, phonePublic, timezone, isHiring)
      VALUES (?, ?, '', 'America/New_York', 0)`
   ).bind(tenantId, address).run();
 
   // Create theme config
   const heroImageId = hydratedImages[0] || null;
   await env.DB.prepare(
-    `INSERT INTO theme_config (tenant_id, primary_color, secondary_color, font_heading, font_body, layout_style, hero_image_cf_id)
+    `INSERT INTO theme_config (tenantId, primaryColor, secondaryColor, fontHeading, fontBody, layoutStyle, heroImageCfId)
      VALUES (?, '#dc2626', '#f3f4f6', 'sans-serif', 'sans-serif', 'grid', ?)`
   ).bind(tenantId, heroImageId).run();
 
@@ -111,7 +111,7 @@ async function provisionFromPreview(env: Env, data: any) {
     const category = item.category || 'Menu';
     if (!categoryMap.has(category)) {
       const result = await env.DB.prepare(
-        `INSERT INTO categories (tenant_id, name, sort_order, is_visible)
+        `INSERT INTO categories (tenantId, name, sortOrder, isVisible)
          VALUES (?, ?, ?, 1)
          RETURNING id`
       ).bind(tenantId, category, categoryMap.size).first<{ id: number }>();
@@ -123,7 +123,7 @@ async function provisionFromPreview(env: Env, data: any) {
     if (!categoryId) continue;
 
     await env.DB.prepare(
-      `INSERT INTO menu_items (tenant_id, category_id, name, description, price, image_cf_id, is_available, embedding_version)
+      `INSERT INTO menu_items (tenantId, categoryId, name, description, price, imageCfId, isAvailable, embeddingVersion)
        VALUES (?, ?, ?, ?, ?, NULL, 1, 1)`
     ).bind(tenantId, categoryId, item.name || '', item.description || '', item.price || 0).run();
   }

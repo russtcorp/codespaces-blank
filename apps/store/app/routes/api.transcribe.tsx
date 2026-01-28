@@ -12,9 +12,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
   const formData = await request.formData();
   
+  // Get DO stub for this tenant
+  const agentId = env.AGENT_DO.idFromName(user.tenantId);
+  const agentStub = env.AGENT_DO.get(agentId);
+  
   // Proxy to Agent Worker
   try {
-    const response = await env.AGENT_DO.fetch("https://agent.internal/api/voice/transcribe", {
+    const response = await agentStub.fetch("https://agent.internal/api/voice/transcribe", {
       method: "POST",
       body: formData, // Forward the multipart form data directly
     });

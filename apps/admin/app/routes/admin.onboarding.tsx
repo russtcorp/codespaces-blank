@@ -1,11 +1,106 @@
 import { json, type ActionFunctionArgs } from "@remix-run/cloudflare";
-import { useActionData, useNavigation } from "@remix-run/react";
 import * as Form from '@radix-ui/react-form';
-import { Input } from '~/components/Input'; // Assuming Input is a styled component
+import { Input } from '~/components/Input'; 
 import { INTENTS } from '@diner-saas/db/intents';
-// ... other imports
 
-// ... action function remains the same
+import { useActionData, Form, useNavigation } from "@remix-run/react";
+import { useState } from "react";
+import { Logger } from "@diner-saas/logger";
+
+export async function action({ request, context }: ActionFunctionArgs) {
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+  const env = (context as any).cloudflare?.env || (request as any).env;
+  const ctx = (context as any).cloudflare?.ctx;
+  const logger = new Logger(request, env, ctx);
+
+  try {
+    switch (intent) {
+      case "start-workflow": {
+        const businessName = formData.get("businessName") as string;
+        const address = formData.get("address") as string;
+        const websiteUrl = formData.get("websiteUrl") as string;
+        const customDomain = formData.get("customDomain") as string;
+        const scrapeGoogle = formData.get("scrapeGoogle") === "on";
+        const scrapeWayback = formData.get("scrapeWayback") === "on";
+        const scrapeInstagram = formData.get("scrapeInstagram") === "on";
+
+        if (!businessName || !address) {
+          return json({ error: "Business name and address are required" }, { status: 400 });
+        }
+
+        // Trigger the Cloudflare Workflow via internal service binding
+        const workflowResponse = await env.WORKFLOWS_SERVICE.fetch("https://workflows.internal/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            businessName,
+            address,
+            websiteUrl: websiteUrl || undefined,
+            scrapeGoogle,
+            scrapeWayback,
+            scrapeInstagram,
+            customDomain: customDomain || undefined,
+          }),
+        });
+
+        const workflowResult: any = await workflowResponse.json();
+
+        if (!workflowResponse.ok) {
+          return json({ error: workflowResult.error || "Workflow failed" }, { status: 500 });
+        }
+
+        return json({
+          success: true,
+          workflow_id: workflowResult.workflow_id,
+          step: "started",
+        });
+      }
+
+      case "check-status": {
+        const workflowId = formData.get("workflow_id") as string;
+
+        if (!workflowId) {
+          return json({ error: "workflow_id is required" }, { status: 400 });
+        }
+
+        // Check workflow status
+        const statusResponse = await env.WORKFLOWS_SERVICE.fetch(`https://workflows.internal/status/${workflowId}`);
+        const statusResult: any = await statusResponse.json();
+
+        if (!statusResponse.ok) {
+          return json({ error: "Workflow not found" }, { status: 404 });
+        }
+
+        return json({
+          success: true,
+          status: statusResult.status,
+          output: statusResult.output,
+          step: "complete",
+        });
+      }
+
+      case "approve": {
+        const previewId = formData.get("preview_id") as string;
+        if (!previewId) {
+          return json({ error: "preview_id is required" }, { status: 400 });
+        }
+        const approveResponse = await env.WORKFLOWS_SERVICE.fetch(`https://workflows.internal/approve/${previewId}`, { method: "POST" });
+        const approveResult: any = await approveResponse.json();
+        if (!approveResponse.ok) {
+          return json({ error: approveResult.error || "Approve failed" }, { status: 500 });
+        }
+        return json({ success: true, approved: true, result: approveResult.result, step: "approved" });
+      }
+
+      default:
+        return json({ error: "Invalid intent" }, { status: 400 });
+    }
+  } catch (error) {
+    logger.error(error instanceof Error ? error : new Error(String(error)));
+    return json({ error: String(error) }, { status: 500 });
+  }
+}
 
 export default function AdminOnboarding() {
   const actionData = useActionData<typeof action>();

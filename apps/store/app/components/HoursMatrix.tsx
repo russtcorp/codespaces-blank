@@ -7,7 +7,7 @@ import * as Form from '@radix-ui/react-form';
 // ... other imports
 
 interface OperatingHour {
-  id?: number;
+  id: number;
   dayOfWeek: number;
   startTime: string;
   endTime: string;
@@ -24,6 +24,16 @@ export function HoursMatrix({ initialHours, emergencyCloseReason }: HoursMatrixP
     const handleEmergencyClose = (formData: FormData) => {
         formData.append("intent", "emergency-close");
         fetcher.submit(formData, { method: "post" });
+  // Group hours by day
+  const hoursByDay = DAYS.map((day, index) => {
+    const dayHours = hours.filter((h) => h.dayOfWeek === index);
+    return {
+      day,
+      dayOfWeek: index,
+      slots: dayHours.map((h) => ({
+        start: h.startTime,
+        end: h.endTime,
+      })),
     };
 
     return (

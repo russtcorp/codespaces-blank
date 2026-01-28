@@ -57,7 +57,10 @@ export default {
     // Agent Chat API (for Dashboard)
     if (url.pathname === "/api/chat" && request.method === "POST") {
       const body = await request.json() as any;
-      const tenantId = body.tenantId || "default-tenant"; 
+      const tenantId = body.tenantId;
+      if (!tenantId) {
+        return new Response("Missing tenantId", { status: 400 });
+      }
       
       const id = env.AGENT_DO.idFromName(tenantId);
       const stub = env.AGENT_DO.get(id);
